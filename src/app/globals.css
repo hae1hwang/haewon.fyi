@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --aqua-chrome: #eef0f3;
+  --aqua-accent: #1c5fd1;
+  --aqua-red: #ff5f57;
+  --aqua-red-dark: #e0443e;
+  --aqua-yellow: #ffbd2e;
+  --aqua-yellow-dark: #dea123;
+  --aqua-green: #28c840;
+  --aqua-green-dark: #1aab29;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-chrome: var(--aqua-chrome);
+  --color-accent: var(--aqua-accent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #000000;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--aqua-accent);
+  color: #fff;
+}
+
+/* glossy Aqua window chrome */
+.aqua-window {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow:
+    0 26px 50px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.aqua-titlebar {
+  background: linear-gradient(
+    to bottom,
+    #fbfcfe 0%,
+    #eef2f8 44%,
+    #cfdaea 46%,
+    #eef2f8 100%
+  );
+}
+
+.aqua-titlebar-inactive {
+  background: linear-gradient(
+    to bottom,
+    #f8f8f8 0%,
+    #ececec 44%,
+    #dcdcdc 46%,
+    #ececec 100%
+  );
+}
+
+.aqua-toolbar {
+  background: linear-gradient(to bottom, #eef0f3, #d7dadf);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.aqua-field {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.aqua-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid #6f8fc9;
+  background: linear-gradient(
+    to bottom,
+    #ffffff 0%,
+    #eaf1fc 45%,
+    #cfe0f7 46%,
+    #ffffff 100%
+  );
+  color: #1c3f78;
+  overflow: hidden;
+}
+.aqua-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px 1px auto 1px;
+  height: 45%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+  border-radius: 9999px 9999px 0 0;
+  pointer-events: none;
+}
+
+.aqua-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.aqua-dot-red {
+  background: radial-gradient(circle at 35% 30%, #ff8f89, var(--aqua-red) 55%, var(--aqua-red-dark) 100%);
+}
+.aqua-dot-yellow {
+  background: radial-gradient(circle at 35% 30%, #ffe08a, var(--aqua-yellow) 55%, var(--aqua-yellow-dark) 100%);
+}
+.aqua-dot-green {
+  background: radial-gradient(circle at 35% 30%, #7be08a, var(--aqua-green) 55%, var(--aqua-green-dark) 100%);
+}
+.aqua-dot-glyph {
+  opacity: 0;
+  font-size: 9px;
+  line-height: 1;
+  color: #7a0000;
+  font-weight: 700;
+  transition: opacity 0.1s;
+}
+.aqua-dot-red:hover .aqua-dot-glyph {
+  opacity: 1;
+}
+
+@keyframes blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
