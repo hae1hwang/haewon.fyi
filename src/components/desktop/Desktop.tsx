@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Wallpaper } from "./Wallpaper";
 import { DesktopIcon } from "./DesktopIcon";
 import { Footer } from "./Footer";
+import { PullIndicator, usePullToRefresh } from "./PullToRefresh";
 import { Window } from "./Window";
 import { NoteIcon, MailIcon, WorkFolderIcon, FunFolderIcon } from "./icons";
 import { AboutWindow } from "./windows/AboutWindow";
@@ -150,6 +151,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const draggingRef = useRef(false);
   // "show desktop": clicking the background slides open windows to the edges
   const [windowsHidden, setWindowsHidden] = useState(false);
+  const pullToRefresh = usePullToRefresh();
 
   useEffect(() => {
     let width = window.innerWidth;
@@ -252,9 +254,14 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     draggingRef.current = true;
 
     function onMove(ev: PointerEvent) {
-      if (!canDrag) return;
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
+      if (!canDrag) {
+        // icons stay put on mobile, but a touch that travels is a swipe or
+        // pull, not a tap, so it must not open the window
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
+        return;
+      }
       if (!moved && Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;
       if (!moved) {
         moved = true;
@@ -307,7 +314,14 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     >
       <Wallpaper />
 
-      <div className="absolute inset-0 z-[1] flex items-center justify-center">
+      <div
+        onPointerDown={pullToRefresh.onPointerDown}
+        // on iOS the page handles the pull itself, so the browser mustn't
+        // claim the touch first
+        className={`absolute inset-0 z-[1] flex items-center justify-center ${
+          pullToRefresh.isIOS ? "touch-none" : ""
+        }`}
+      >
         <div className="flex max-w-[calc(100vw-32px)] flex-row flex-wrap justify-center gap-[8px]">
           {DESKTOP_ICONS.map((d) => (
             <div
@@ -361,6 +375,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
         );
       })}
 
+      <PullIndicator pull={pullToRefresh.pull} refreshing={pullToRefresh.refreshing} />
       <Footer lastUpdated={lastUpdated} />
     </main>
   );
