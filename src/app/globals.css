@@ -23,7 +23,11 @@
 html,
 body {
   height: 100%;
-  overscroll-behavior: none;
+  /* vertical overscroll stays at the browser default so pull-to-refresh works;
+     sideways swipes shouldn't trigger back/forward navigation */
+  overscroll-behavior-x: none;
+  /* what shows during a pull / rubber-band, matching the wallpaper */
+  background: #64b5fa;
 }
 
 body {

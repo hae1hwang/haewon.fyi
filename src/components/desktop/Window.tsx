@@ -322,7 +322,7 @@ export function Window({
       </div>
 
       <WindowWidthContext.Provider value={requestWidth}>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-chrome">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-chrome">{children}</div>
       </WindowWidthContext.Provider>
     </div>
   );

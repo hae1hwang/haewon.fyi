@@ -33,21 +33,25 @@ const APPS: Record<
     iconOffsetTop?: number;
     initial: { x: number; y: number };
     width: number;
+    // rough opening height, only used to keep a random position on screen
+    height: number;
     render: (ctx: AppContext) => React.ReactNode;
   }
 > = {
   about: {
     title: "about.txt",
-    icon: <NoteIcon />,
+    icon: <NoteIcon shadowed />,
     initial: { x: 40, y: 60 },
     width: 460,
+    height: 545,
     render: () => <AboutWindow />,
   },
   fun: {
     title: "fun",
-    icon: <FunFolderIcon />,
+    icon: <FunFolderIcon shadowed />,
     initial: { x: 90, y: 100 },
     width: 420,
+    height: 415,
     render: ({ openProject }) => (
       <FinderWindow
         root="fun"
@@ -60,9 +64,10 @@ const APPS: Record<
   },
   work: {
     title: "work",
-    icon: <WorkFolderIcon />,
+    icon: <WorkFolderIcon shadowed />,
     initial: { x: 60, y: 40 },
     width: 420,
+    height: 415,
     render: ({ openProject }) => (
       <FinderWindow
         root="work"
@@ -75,11 +80,12 @@ const APPS: Record<
   },
   contact: {
     title: "Contact",
-    icon: <MailIcon />,
+    icon: <MailIcon shadowed />,
     iconSize: 96,
     iconOffsetTop: 10,
     initial: { x: 120, y: 150 },
     width: 420,
+    height: 320,
     render: () => <ContactWindow />,
   },
 };
@@ -90,6 +96,42 @@ const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
   { id: "fun", label: "fun" },
   { id: "contact", label: "Contact" },
 ];
+
+const PROJECT_WINDOW = { width: 520, height: 260 };
+
+// Picks where a new window opens on desktop: random, but preferring spots
+// that don't cover the windows already open (a little overlap is fine).
+// On mobile windows are centered by CSS, so the fallback is used as-is.
+function pickWindowPosition(width: number, height: number, fallback: Offset): Offset {
+  if (window.matchMedia("(max-width: 639px)").matches) return fallback;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = Math.min(vw * 0.92, width);
+  const h = Math.min(vh * 0.88, height);
+  const EDGE = 20;
+  const FOOTER = 60;
+  const maxX = Math.max(0, vw - w - EDGE);
+  const maxY = Math.max(0, vh - h - FOOTER);
+  const taken = Array.from(document.querySelectorAll(".aqua-window")).map((el) =>
+    el.getBoundingClientRect()
+  );
+
+  const candidates = Array.from({ length: 24 }, () => {
+    const x = EDGE + Math.random() * Math.max(0, maxX - EDGE);
+    const y = EDGE + Math.random() * Math.max(0, maxY - EDGE);
+    let overlap = 0;
+    for (const t of taken) {
+      const ix = Math.max(0, Math.min(x + w, t.right) - Math.max(x, t.left));
+      const iy = Math.max(0, Math.min(y + h, t.bottom) - Math.max(y, t.top));
+      overlap += ix * iy;
+    }
+    return { x, y, overlap: overlap / (w * h) };
+  });
+  const roomy = candidates.filter((c) => c.overlap <= 0.3);
+  const pool = roomy.length ? roomy : [candidates.reduce((a, b) => (b.overlap < a.overlap ? b : a))];
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  return { x: Math.round(pick.x), y: Math.round(pick.y) };
+}
 
 type WinState = { open: boolean; z: number; origin?: Offset; initial?: Offset };
 
@@ -131,18 +173,27 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   // origin is the icon's center, so the window can grow out of it
   function openWindow(id: WindowId, origin: Offset) {
     setWindowsHidden(false);
-    setWindows((w) => ({ ...w, [id]: { open: true, z: nextZ(), origin } }));
+    const app = APPS[id as DesktopId];
+    const initial = windows[id]?.open
+      ? undefined
+      : pickWindowPosition(app.width, app.height, app.initial);
+    setWindows((w) => ({
+      ...w,
+      [id]: { open: true, z: nextZ(), origin, initial: initial ?? w[id]?.initial },
+    }));
   }
 
-  // each project file opens in its own window, cascaded from the last one
+  // each project file opens in its own window
   function openProject(folder: string, title: string, origin: Offset) {
     const id = projectWindowId(folder, title);
     setWindowsHidden(false);
-    setWindows((w) => {
-      const n = Object.keys(w).filter((k) => k.startsWith("project:") && w[k].open).length;
-      const initial = w[id]?.initial ?? { x: 140 + n * 28, y: 90 + n * 28 };
-      return { ...w, [id]: { open: true, z: nextZ(), origin, initial } };
-    });
+    const initial = windows[id]?.open
+      ? undefined
+      : pickWindowPosition(PROJECT_WINDOW.width, PROJECT_WINDOW.height, { x: 140, y: 90 });
+    setWindows((w) => ({
+      ...w,
+      [id]: { open: true, z: nextZ(), origin, initial: initial ?? w[id]?.initial },
+    }));
   }
 
   function getApp(id: WindowId) {
@@ -151,8 +202,9 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     return {
       title: project?.title ?? "",
       icon: <NoteIcon />,
-      initial: windows[id]?.initial ?? { x: 140, y: 90 },
-      width: 520,
+      initial: { x: 140, y: 90 },
+      width: PROJECT_WINDOW.width,
+      height: PROJECT_WINDOW.height,
       render: () => <ProjectWindow folder={project?.folder ?? ""} title={project?.title ?? ""} />,
     };
   }
@@ -166,9 +218,26 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     setWindows((w) => ({ ...w, [id]: { ...w[id], open: false } }));
   }
 
+  // A tap on the empty background tucks windows away / brings them back. It
+  // fires on release, and only if the pointer barely moved, so a touch that
+  // turns into the browser's pull-to-refresh (pointercancel) or a scroll
+  // doesn't count as a tap.
   function handleBackgroundPointerDown(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("button, a, .aqua-window")) return;
-    setWindowsHidden((h) => !h);
+    const { clientX: startX, clientY: startY } = e;
+
+    function cleanup() {
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", cleanup);
+    }
+    function onUp(ev: PointerEvent) {
+      cleanup();
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 10) {
+        setWindowsHidden((h) => !h);
+      }
+    }
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", cleanup);
   }
 
   function handleIconPointerDown(id: DesktopId, e: React.PointerEvent) {
@@ -197,15 +266,21 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
       setIconOffset((o) => ({ ...o, [id]: { x: orig.x + cx, y: orig.y + cy } }));
     }
 
-    function onUp() {
+    function cleanup() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", cleanup);
       draggingRef.current = false;
+    }
+    function onUp() {
+      cleanup();
       if (!moved) openWindow(id, origin);
     }
 
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    // the browser took the touch over (e.g. pull-to-refresh): not a tap
+    window.addEventListener("pointercancel", cleanup);
   }
 
   const activeId = useMemo(() => {
@@ -267,7 +342,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             icon={app.icon}
             zIndex={w.z}
             isActive={id === activeId}
-            initial={app.initial}
+            initial={w.initial ?? app.initial}
             width={app.width}
             expandOnMobile={!(id in APPS)}
             hidden={windowsHidden}

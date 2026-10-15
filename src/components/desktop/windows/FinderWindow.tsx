@@ -150,7 +150,7 @@ export function FinderWindow({
 
       <div className="flex h-[280px] shrink-0 border-y border-black/10 bg-white">
         <div
-          className="min-w-0 flex-1 overflow-y-auto p-1.5 sm:w-[270px] sm:flex-none"
+          className="min-w-0 flex-1 overflow-y-auto overscroll-contain p-1.5 sm:w-[270px] sm:flex-none"
           // clicking the empty space under the folders deselects the open one
           onClick={(e) => {
             if (e.target !== e.currentTarget) return;
@@ -180,7 +180,7 @@ export function FinderWindow({
         </div>
 
         <div
-          className={`min-w-0 flex-1 overflow-y-auto border-l border-black/15 p-1.5 ${
+          className={`min-w-0 flex-1 overflow-y-auto overscroll-contain border-l border-black/15 p-1.5 ${
             selected ? "" : "hidden sm:block"
           }`}
         >
