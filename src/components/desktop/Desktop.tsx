@@ -162,9 +162,12 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     const startX = e.clientX;
     const startY = e.clientY;
     let moved = false;
+    // icons are fixed in place on mobile; only windows can be dragged there
+    const canDrag = !window.matchMedia("(max-width: 639px)").matches;
     draggingRef.current = true;
 
     function onMove(ev: PointerEvent) {
+      if (!canDrag) return;
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
       if (!moved && Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;

@@ -7,6 +7,8 @@ export const site = {
   tagline: "I design products that make complicated things feel obvious.",
   location: "New York, NY",
   email: "haewonhwang1@gmail.com",
+  // Formspree form that delivers the Contact window's messages
+  formspreeId: "mrperpko",
   resumeUrl: "#",
   socials: [
     { label: "LinkedIn", href: "https://www.linkedin.com/in/haewonhwang/" },

@@ -99,6 +99,10 @@ export function Window({
       : initial
   );
   const [dragging, setDragging] = useState(false);
+  // on mobile a window starts centered by CSS; once grabbed it switches to
+  // explicit left/top coordinates like on desktop
+  const [detached, setDetached] = useState(false);
+  const centeredByCss = isMobile && !expandOnMobile && !detached;
   const windowRef = useRef<HTMLDivElement>(null);
   const [widthOverride, setWidthOverride] = useState<number>();
   const closingRef = useRef(false);
@@ -108,7 +112,7 @@ export function Window({
 
   // where the window's center rests on screen, ignoring any running transform
   function restingCenter(el: HTMLElement) {
-    return isMobile && !expandOnMobile
+    return centeredByCss
       ? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
       : { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 };
   }
@@ -243,13 +247,16 @@ export function Window({
   function onTitlePointerDown(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("[data-titlebar-button]")) return;
     onFocus();
-    if (isMobile && !expandOnMobile) return;
     const rect = windowRef.current?.getBoundingClientRect();
+    if (centeredByCss && rect) {
+      setPos({ x: rect.left, y: rect.top });
+      setDetached(true);
+    }
     dragStart.current = {
       mouseX: e.clientX,
       mouseY: e.clientY,
-      winX: pos.x,
-      winY: pos.y,
+      winX: centeredByCss && rect ? rect.left : pos.x,
+      winY: centeredByCss && rect ? rect.top : pos.y,
       w: rect?.width ?? 0,
       h: rect?.height ?? 0,
     };
@@ -268,7 +275,7 @@ export function Window({
               width: `calc(100vw - ${MOBILE_EXPANDED_EDGE * 2}px)`,
               height: `calc(100dvh - ${MOBILE_EXPANDED_EDGE + MOBILE_FOOTER_ROOM}px)`,
             }
-          : isMobile
+          : centeredByCss
           ? {
               left: "50%",
               top: "50%",
@@ -282,7 +289,9 @@ export function Window({
               left: pos.x,
               top: pos.y,
               maxHeight: "88vh",
-              width: `min(92vw, ${widthOverride ?? width}px)`,
+              width: isMobile
+                ? `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`
+                : `min(92vw, ${widthOverride ?? width}px)`,
             }),
         zIndex,
         transition:
