@@ -11,6 +11,8 @@ import { FunWindow } from "./windows/FunWindow";
 import { WorkWindow } from "./windows/WorkWindow";
 import { ContactWindow } from "./windows/ContactWindow";
 
+type Offset = { x: number; y: number };
+
 type WindowId = "about" | "fun" | "work" | "contact";
 
 const APPS: Record<
@@ -64,8 +66,7 @@ const DESKTOP_ICONS: { id: WindowId; label: string }[] = [
   { id: "contact", label: "Contact" },
 ];
 
-type WinState = { open: boolean; z: number };
-type Offset = { x: number; y: number };
+type WinState = { open: boolean; z: number; origin?: Offset };
 
 export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const [windows, setWindows] = useState<Record<WindowId, WinState>>({
@@ -102,9 +103,10 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     return z;
   }
 
-  function openWindow(id: WindowId) {
+  // origin is the icon's center, so the window can grow out of it
+  function openWindow(id: WindowId, origin: Offset) {
     setWindowsHidden(false);
-    setWindows((w) => ({ ...w, [id]: { open: true, z: nextZ() } }));
+    setWindows((w) => ({ ...w, [id]: { open: true, z: nextZ(), origin } }));
   }
 
   function focusWindow(id: WindowId) {
@@ -124,6 +126,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   function handleIconPointerDown(id: WindowId, e: React.PointerEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const orig = iconOffset[id] ?? { x: 0, y: 0 };
+    const origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     const startX = e.clientX;
     const startY = e.clientY;
     let moved = false;
@@ -147,7 +150,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       draggingRef.current = false;
-      if (!moved) openWindow(id);
+      if (!moved) openWindow(id, origin);
     }
 
     window.addEventListener("pointermove", onMove);
@@ -183,6 +186,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
           {DESKTOP_ICONS.map((d) => (
             <div
               key={d.id}
+              data-icon-id={d.id}
               className="relative"
               style={{
                 transform: `translate(${iconOffset[d.id]?.x ?? 0}px, ${iconOffset[d.id]?.y ?? 0}px)`,
@@ -195,7 +199,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
                 iconSize={APPS[d.id].iconSize}
                 iconOffsetTop={APPS[d.id].iconOffsetTop}
                 onPointerDown={(e) => handleIconPointerDown(d.id, e)}
-                onKeyboardOpen={() => openWindow(d.id)}
+                onKeyboardOpen={(rect) => openWindow(d.id, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })}
               />
             </div>
           ))}
@@ -215,6 +219,13 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             initial={app.initial}
             width={app.width}
             hidden={windowsHidden}
+            origin={w.origin}
+            getCloseOrigin={() => {
+              const r = document
+                .querySelector(`[data-icon-id="${id}"]`)
+                ?.getBoundingClientRect();
+              return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            }}
             onClose={() => closeWindow(id)}
             onFocus={() => focusWindow(id)}
           >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -15,6 +15,8 @@ export function Window({
   initial,
   width = 480,
   hidden = false,
+  origin,
+  getCloseOrigin,
   onClose,
   onFocus,
   children,
@@ -26,6 +28,8 @@ export function Window({
   initial: { x: number; y: number };
   width?: number;
   hidden?: boolean;
+  origin?: { x: number; y: number };
+  getCloseOrigin?: () => { x: number; y: number } | undefined;
   onClose: () => void;
   onFocus: () => void;
   children: ReactNode;
@@ -33,7 +37,28 @@ export function Window({
   const [pos, setPos] = useState(initial);
   const [dragging, setDragging] = useState(false);
   const windowRef = useRef<HTMLDivElement>(null);
+  const closingRef = useRef(false);
   const dragStart = useRef({ mouseX: 0, mouseY: 0, winX: 0, winY: 0, w: 0, h: 0 });
+
+  // grow out of the icon it was opened from (mount == open)
+  useLayoutEffect(() => {
+    const el = windowRef.current;
+    if (!el || !origin) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // offset* ignore transforms, so a re-run (StrictMode) mid-animation
+    // still measures the window's real resting place
+    const dx = origin.x - (el.offsetLeft + el.offsetWidth / 2);
+    const dy = origin.y - (el.offsetTop + el.offsetHeight / 2);
+    el.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 },
+        { transform: "translate(0, 0) scale(1)", opacity: 1 },
+      ],
+      { duration: 270, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }
+    );
+    // runs once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     function clampToViewport() {
@@ -64,14 +89,41 @@ export function Window({
     el.style.transform = `translateX(${dx}px)`;
   }, [hidden]);
 
+  // inverse of the open animation: shrink back into the icon, then unmount
+  function requestClose() {
+    if (closingRef.current) return;
+    const el = windowRef.current;
+    const target = getCloseOrigin?.() ?? origin;
+    if (
+      !el ||
+      !target ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      onClose();
+      return;
+    }
+    closingRef.current = true;
+    const dx = target.x - (el.offsetLeft + el.offsetWidth / 2);
+    const dy = target.y - (el.offsetTop + el.offsetHeight / 2);
+    const anim = el.animate(
+      [
+        { transform: "translate(0, 0) scale(1)", opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.1)`, opacity: 0 },
+      ],
+      { duration: 270, easing: "cubic-bezier(0.32, 0, 0.67, 0)", fill: "forwards" }
+    );
+    anim.onfinish = onClose;
+  }
+
   useEffect(() => {
     if (!isActive || hidden) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isActive, hidden, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, hidden, onClose, getCloseOrigin, origin]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -142,7 +194,7 @@ export function Window({
           <button
             data-titlebar-button
             aria-label="Close"
-            onClick={onClose}
+            onClick={requestClose}
             className="aqua-dot aqua-dot-red"
           >
             <span className="aqua-dot-glyph">✕</span>

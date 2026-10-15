@@ -5,9 +5,8 @@ export function WorkWindow() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
-        <span>Address</span>
         <span className="aqua-field flex-1 px-2.5 py-1">
-          Macintosh HD ▸ Portfolio ▸ Work
+          haewon.fyi ▸ work
         </span>
       </div>
 

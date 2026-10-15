@@ -15,7 +15,7 @@ export function DesktopIcon({
   iconSize?: number;
   iconOffsetTop?: number;
   onPointerDown: (e: React.PointerEvent) => void;
-  onKeyboardOpen: () => void;
+  onKeyboardOpen: (rect: DOMRect) => void;
 }) {
   return (
     <button
@@ -23,7 +23,7 @@ export function DesktopIcon({
       // pointer clicks are handled by the drag logic; detail === 0 is a
       // keyboard-triggered click (Enter / Space)
       onClick={(e) => {
-        if (e.detail === 0) onKeyboardOpen();
+        if (e.detail === 0) onKeyboardOpen(e.currentTarget.getBoundingClientRect());
       }}
       className="group relative h-[140px] w-[140px] shrink-0 touch-none outline-none"
     >
