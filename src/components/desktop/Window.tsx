@@ -18,6 +18,17 @@ function clamp(value: number, min: number, max: number) {
 
 const SLIVER = 48;
 
+// while dragging, a window may be pushed past the screen edges, but never so
+// far that it can't be grabbed again: a sliver stays visible horizontally and
+// the title bar stays on screen vertically
+const TITLEBAR_HEIGHT = 32;
+function clampDrag(x: number, y: number, w: number) {
+  return {
+    x: clamp(x, SLIVER - w, window.innerWidth - SLIVER),
+    y: clamp(y, 0, window.innerHeight - TITLEBAR_HEIGHT),
+  };
+}
+
 // below Tailwind's `sm`, windows are centered with fixed side padding instead
 // of sitting at their own position
 const MOBILE_QUERY = "(max-width: 639px)";
@@ -91,6 +102,9 @@ export function Window({
   const windowRef = useRef<HTMLDivElement>(null);
   const [widthOverride, setWidthOverride] = useState<number>();
   const closingRef = useRef(false);
+  // once the user has dragged, a partly off-screen position is deliberate and
+  // must survive resizes and width changes
+  const draggedRef = useRef(false);
 
   // where the window's center rests on screen, ignoring any running transform
   function restingCenter(el: HTMLElement) {
@@ -106,10 +120,9 @@ export function Window({
       setWidthOverride(w);
       // growing rightwards must not push the window off-screen
       const effective = Math.min(window.innerWidth * 0.92, w ?? width);
-      setPos((p) => ({
-        ...p,
-        x: clamp(p.x, 0, Math.max(0, window.innerWidth - effective)),
-      }));
+      setPos((p) =>
+        p.x < 0 ? p : { ...p, x: Math.min(p.x, Math.max(0, window.innerWidth - effective)) }
+      );
     },
     [width]
   );
@@ -140,10 +153,14 @@ export function Window({
       const el = windowRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setPos((p) => ({
-        x: clamp(p.x, 0, Math.max(0, window.innerWidth - rect.width)),
-        y: clamp(p.y, 0, Math.max(0, window.innerHeight - rect.height)),
-      }));
+      setPos((p) =>
+        draggedRef.current
+          ? clampDrag(p.x, p.y, rect.width)
+          : {
+              x: clamp(p.x, 0, Math.max(0, window.innerWidth - rect.width)),
+              y: clamp(p.y, 0, Math.max(0, window.innerHeight - rect.height)),
+            }
+      );
     }
     clampToViewport();
     window.addEventListener("resize", clampToViewport);
@@ -207,18 +224,10 @@ export function Window({
     function onMove(e: PointerEvent) {
       const dx = e.clientX - dragStart.current.mouseX;
       const dy = e.clientY - dragStart.current.mouseY;
-      setPos({
-        x: clamp(
-          dragStart.current.winX + dx,
-          0,
-          Math.max(0, window.innerWidth - dragStart.current.w)
-        ),
-        y: clamp(
-          dragStart.current.winY + dy,
-          0,
-          Math.max(0, window.innerHeight - dragStart.current.h)
-        ),
-      });
+      draggedRef.current = true;
+      setPos(
+        clampDrag(dragStart.current.winX + dx, dragStart.current.winY + dy, dragStart.current.w)
+      );
     }
     function onUp() {
       setDragging(false);
