@@ -126,7 +126,9 @@ export function WorkWindow({
           }`}
         >
           <span className="flex-1">Project</span>
-          <span className="hidden w-[120px] shrink-0 sm:block">Platform</span>
+          {selected && (
+            <span className="hidden w-[120px] shrink-0 sm:block">Platform</span>
+          )}
         </div>
       </div>
 
