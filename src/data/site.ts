@@ -101,40 +101,15 @@ export const site = {
         "B.A. Information Science, magna cum laude. Business minor. (almost) Fine arts minor. Teaching assistant, lecturer, research assistant, mentor, photographer.",
     },
   ],
-  projects: [
+  // top-level folders in the work window; item titles are placeholders
+  // until the case studies exist
+  workFolders: [
     {
-      slug: "youtube-tv-library",
-      title: "Redesigning the YouTube TV Library experience",
-      summary:
-        "Leading UX across TV, web, mobile, and tablet for one of YouTube TV's core surfaces, including a new sign-in and identity experience.",
-      tags: ["TV platform", "Cross-platform", "Identity"],
-      year: "2018–Present",
+      name: "YouTube TV",
+      items: [{ title: "Library" }, { title: "Multiview" }, { title: "Watch" }],
     },
-    {
-      slug: "signac-design-system",
-      title: "Building a startup's design system from the ground up",
-      summary:
-        "As the first and only designer at Signac, led UX end to end and built the company's design system.",
-      tags: ["Design systems", "0→1", "Leadership"],
-      year: "2016",
-    },
-    {
-      slug: "google-photos-books",
-      title: "Bringing new creation tools to Google Photos Books",
-      summary:
-        "Designed, prototyped, tested, and launched new editing and creation features across web, iOS, Android, and tablet.",
-      tags: ["Consumer", "0→1", "Mobile"],
-      year: "2017–2018",
-    },
-    {
-      slug: "uber-driver-app",
-      title: "Enhancing the driver experience on Uber's partner app",
-      summary:
-        "Improved core flows for drivers on Uber's partner app during a summer internship on the driver experience team.",
-      tags: ["Mobile", "Consumer"],
-      year: "2016",
-    },
+    { name: "YouTube", items: [{ title: "Identity" }] },
+    { name: "Google Photos", items: [{ title: "Photo Books collage builder" }] },
+    { name: "Side projects", items: [{ title: "Untitled project" }] },
   ],
 };
-
-export type Project = (typeof site.projects)[number];

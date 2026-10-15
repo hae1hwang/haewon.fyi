@@ -2,21 +2,61 @@
 
 import { useState } from "react";
 import { site } from "@/data/site";
-import { FolderIcon } from "../icons";
+import { useRequestedWidth } from "../Window";
+import { FolderIcon, NoteIcon } from "../icons";
+
+const EXPANDED_WIDTH = 570;
+
+function Chevron() {
+  return (
+    <svg
+      viewBox="0 0 6 10"
+      className="ml-auto h-[9px] w-[6px] shrink-0 opacity-50"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m1 1 4 4-4 4" />
+    </svg>
+  );
+}
+
+const rowClass = (active: boolean) =>
+  `flex w-full items-center gap-2 rounded-[5px] px-2 py-[3px] text-left text-[13px] font-normal ${
+    active ? "bg-accent text-white" : "text-black"
+  }`;
 
 export function WorkWindow() {
   const [query, setQuery] = useState("");
-  // search only covers this folder, and only project titles for now
+  const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const selected = site.workFolders.find((f) => f.name === selectedName);
+
+  // opening a folder grows the window to the right to make room for its column
+  useRequestedWidth(selected ? EXPANDED_WIDTH : undefined);
+
+  // search only covers this folder: folder names, and project titles inside
   const q = query.trim().toLowerCase();
-  const projects = q
-    ? site.projects.filter((p) => p.title.toLowerCase().includes(q))
-    : site.projects;
+  const matches = (text: string) => text.toLowerCase().includes(q);
+  const folders = q
+    ? site.workFolders.filter(
+        (f) => matches(f.name) || f.items.some((item) => matches(item.title))
+      )
+    : site.workFolders;
+  const items = !selected
+    ? []
+    : !q || matches(selected.name)
+      ? selected.items
+      : selected.items.filter((item) => matches(item.title));
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
         <span className="aqua-field flex-1 px-2.5 py-1">
-          haewon.fyi ▸ work
+          haewon.fyi ▸ work{selected && ` ▸ ${selected.name}`}
         </span>
         <label className="relative flex w-[150px] shrink-0 items-center rounded-[5px] border border-black/20 bg-white shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)] focus-within:border-[#4d90fe] focus-within:ring-[3px] focus-within:ring-[#4d90fe]/40 sm:w-[200px]">
           <svg
@@ -62,43 +102,56 @@ export function WorkWindow() {
         </label>
       </div>
 
-      <div className="aqua-field m-2 min-h-0 flex-1 overflow-y-auto">
-        <div className="hidden border-b border-black/10 bg-[#f6f7f9] px-3 py-1.5 text-[11px] font-semibold text-black/60 sm:grid sm:grid-cols-[1fr_140px_100px] sm:gap-2">
-          <span>Name</span>
-          <span>Type</span>
-          <span>Date</span>
+      <div className="flex h-[280px] shrink-0 border-y border-black/10 bg-white">
+        <div
+          className="min-w-0 flex-1 overflow-y-auto p-1.5 sm:w-[270px] sm:flex-none"
+        >
+          {folders.length === 0 && (
+            <p className="px-3 py-6 text-center text-[12px] text-black/50">
+              No results for “{query.trim()}”
+            </p>
+          )}
+          {folders.map((folder) => (
+            <button
+              key={folder.name}
+              onClick={() => {
+                setSelectedName(folder.name);
+                setSelectedItem(null);
+              }}
+              className={rowClass(folder.name === selectedName)}
+            >
+              <FolderIcon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{folder.name}</span>
+              <Chevron />
+            </button>
+          ))}
         </div>
-        {projects.length === 0 && (
-          <p className="px-3 py-6 text-center text-[12px] text-black/50">
-            No results for “{query.trim()}”
-          </p>
-        )}
-        {projects.map((project, i) => (
-          <a
-            key={project.slug}
-            href={`#${project.slug}`}
-            className={`flex flex-col gap-1.5 border-b border-black/5 px-3 py-2.5 text-[12px] hover:bg-accent hover:text-white sm:grid sm:grid-cols-[1fr_140px_100px] sm:items-start sm:gap-2 ${
-              i % 2 === 0 ? "bg-white" : "bg-[#f2f5fb]"
-            }`}
-          >
-            <span className="flex items-start gap-2">
-              <FolderIcon className="mt-0.5 h-6 w-7 shrink-0" />
-              <span>
-                <span className="block font-semibold">{project.title}</span>
-                <span className="mt-0.5 block text-[11px] opacity-80">
-                  {project.summary}
-                </span>
-              </span>
-            </span>
-            <span className="pl-9 text-[11px] opacity-80 sm:pl-0 sm:pt-0.5 sm:opacity-100">
-              {project.tags.join(", ")} · {project.year}
-            </span>
-          </a>
-        ))}
+
+        <div
+          className={`min-w-0 flex-1 overflow-y-auto border-l border-black/15 p-1.5 ${
+            selected ? "" : "hidden sm:block"
+          }`}
+        >
+          {selected && items.length === 0 && (
+            <p className="px-3 py-6 text-center text-[12px] text-black/50">
+              No results
+            </p>
+          )}
+          {items.map((item) => (
+            <button
+              key={item.title}
+              onClick={() => setSelectedItem(item.title)}
+              className={rowClass(item.title === selectedItem)}
+            >
+              <NoteIcon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{item.title}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex shrink-0 items-center border-t border-black/10 bg-chrome px-3 py-1.5 text-[11px] text-black/60">
-        {projects.length} {projects.length === 1 ? "item" : "items"}
+      <div className="flex shrink-0 items-center bg-chrome px-3 py-1.5 text-[11px] text-black/60">
+        {folders.length} {folders.length === 1 ? "item" : "items"}
       </div>
     </div>
   );

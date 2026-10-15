@@ -1,12 +1,30 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState, type ReactNode } from "react";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
 const SLIVER = 48;
+
+// lets a window's content ask for a different window width (e.g. a Finder-style
+// column opening to the right); undefined goes back to the default width
+const WindowWidthContext = createContext<(w: number | undefined) => void>(() => {});
+
+export function useRequestedWidth(w: number | undefined) {
+  const requestWidth = useContext(WindowWidthContext);
+  useEffect(() => {
+    requestWidth(w);
+  }, [w, requestWidth]);
+}
 
 export function Window({
   title,
@@ -37,8 +55,22 @@ export function Window({
   const [pos, setPos] = useState(initial);
   const [dragging, setDragging] = useState(false);
   const windowRef = useRef<HTMLDivElement>(null);
+  const [widthOverride, setWidthOverride] = useState<number>();
   const closingRef = useRef(false);
   const dragStart = useRef({ mouseX: 0, mouseY: 0, winX: 0, winY: 0, w: 0, h: 0 });
+
+  const requestWidth = useCallback(
+    (w: number | undefined) => {
+      setWidthOverride(w);
+      // growing rightwards must not push the window off-screen
+      const effective = Math.min(window.innerWidth * 0.92, w ?? width);
+      setPos((p) => ({
+        ...p,
+        x: clamp(p.x, 0, Math.max(0, window.innerWidth - effective)),
+      }));
+    },
+    [width]
+  );
 
   // grow out of the icon it was opened from (mount == open)
   useLayoutEffect(() => {
@@ -177,10 +209,11 @@ export function Window({
       style={{
         left: pos.x,
         top: pos.y,
-        width: `min(92vw, ${width}px)`,
+        width: `min(92vw, ${widthOverride ?? width}px)`,
         maxHeight: "88vh",
         zIndex,
-        transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+        transition:
+          "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
       }}
       onPointerDown={onFocus}
     >
@@ -206,7 +239,9 @@ export function Window({
         <div className="w-[13px] shrink-0" aria-hidden />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-chrome">{children}</div>
+      <WindowWidthContext.Provider value={requestWidth}>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-chrome">{children}</div>
+      </WindowWidthContext.Provider>
     </div>
   );
 }

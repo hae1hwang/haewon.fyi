@@ -45,7 +45,7 @@ const APPS: Record<
     title: "work",
     icon: <FolderIcon />,
     initial: { x: 60, y: 40 },
-    width: 620,
+    width: 420,
     render: () => <WorkWindow />,
   },
   contact: {
