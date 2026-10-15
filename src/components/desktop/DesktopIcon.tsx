@@ -34,8 +34,8 @@ export function DesktopIcon({
         {icon}
       </span>
       <span
-        className="absolute bottom-0 left-1/2 flex h-[20px] w-max -translate-x-1/2 items-center justify-center whitespace-nowrap rounded-md px-1.5 text-center text-[12px] leading-tight text-white group-hover:bg-[var(--aqua-accent)]/85 group-focus-visible:bg-[var(--aqua-accent)]/85"
-        style={{ textShadow: "0 1px 3px rgba(0,0,0,0.55)" }}
+        className="absolute bottom-0 left-1/2 flex h-[20px] w-max -translate-x-1/2 items-center justify-center whitespace-nowrap rounded-md px-1.5 text-center text-[12px] leading-tight text-[var(--desktop-label)] group-hover:bg-[var(--aqua-accent)]/85 group-hover:text-white group-focus-visible:bg-[var(--aqua-accent)]/85 group-focus-visible:text-white"
+        style={{ textShadow: "var(--desktop-label-shadow)" }}
       >
         {label}
       </span>

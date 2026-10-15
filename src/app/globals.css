@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
 :root {
+  /* desktop colours in one place. Currently the resume PDF's paper colour;
+     the previous blue theme was: bg #64b5fa, footer #2b6092, labels white with
+     text-shadow 0 1px 3px rgba(0,0,0,0.55) */
+  --desktop-bg: #dfdfdb;
+  --desktop-footer: #7d7d79;
+  --desktop-label: #3a3a38;
+  --desktop-label-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+
   --aqua-chrome: #eef0f3;
   --aqua-accent: #1c5fd1;
   --aqua-red: #ff5f57;
@@ -27,7 +35,7 @@ body {
      sideways swipes shouldn't trigger back/forward navigation */
   overscroll-behavior-x: none;
   /* what shows during a pull / rubber-band, matching the wallpaper */
-  background: #64b5fa;
+  background: var(--desktop-bg);
 }
 
 body {
