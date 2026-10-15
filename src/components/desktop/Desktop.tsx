@@ -10,13 +10,22 @@ import { AboutWindow } from "./windows/AboutWindow";
 import { FunWindow } from "./windows/FunWindow";
 import { WorkWindow } from "./windows/WorkWindow";
 import { ContactWindow } from "./windows/ContactWindow";
+import { ProjectWindow } from "./windows/ProjectWindow";
+import { parseProjectWindowId, projectWindowId } from "./projects";
 
 type Offset = { x: number; y: number };
 
-type WindowId = "about" | "fun" | "work" | "contact";
+// the icons on the desktop; project windows are opened from the work folder
+// and only get an id when opened
+type DesktopId = "about" | "fun" | "work" | "contact";
+type WindowId = string;
+
+type AppContext = {
+  openProject: (folder: string, title: string, origin: Offset) => void;
+};
 
 const APPS: Record<
-  WindowId,
+  DesktopId,
   {
     title: string;
     icon: React.ReactNode;
@@ -24,7 +33,7 @@ const APPS: Record<
     iconOffsetTop?: number;
     initial: { x: number; y: number };
     width: number;
-    render: () => React.ReactNode;
+    render: (ctx: AppContext) => React.ReactNode;
   }
 > = {
   about: {
@@ -46,7 +55,7 @@ const APPS: Record<
     icon: <FolderIcon />,
     initial: { x: 60, y: 40 },
     width: 420,
-    render: () => <WorkWindow />,
+    render: ({ openProject }) => <WorkWindow onOpenProject={openProject} />,
   },
   contact: {
     title: "Contact",
@@ -59,14 +68,14 @@ const APPS: Record<
   },
 };
 
-const DESKTOP_ICONS: { id: WindowId; label: string }[] = [
+const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
   { id: "about", label: "about.txt" },
   { id: "work", label: "work" },
   { id: "fun", label: "fun" },
   { id: "contact", label: "Contact" },
 ];
 
-type WinState = { open: boolean; z: number; origin?: Offset };
+type WinState = { open: boolean; z: number; origin?: Offset; initial?: Offset };
 
 export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const [windows, setWindows] = useState<Record<WindowId, WinState>>({
@@ -78,8 +87,8 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const [zCounter, setZCounter] = useState(1);
   // drag offsets from each icon's natural place in the centered row, so the
   // row keeps reflowing on resize and dragged icons simply sit on top of it
-  const [iconOffset, setIconOffset] = useState<Partial<Record<WindowId, Offset>>>({});
-  const [lastDragged, setLastDragged] = useState<WindowId | null>(null);
+  const [iconOffset, setIconOffset] = useState<Partial<Record<DesktopId, Offset>>>({});
+  const [lastDragged, setLastDragged] = useState<DesktopId | null>(null);
   const draggingRef = useRef(false);
   // "show desktop": clicking the background slides open windows to the edges
   const [windowsHidden, setWindowsHidden] = useState(false);
@@ -109,6 +118,29 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     setWindows((w) => ({ ...w, [id]: { open: true, z: nextZ(), origin } }));
   }
 
+  // each project file opens in its own window, cascaded from the last one
+  function openProject(folder: string, title: string, origin: Offset) {
+    const id = projectWindowId(folder, title);
+    setWindowsHidden(false);
+    setWindows((w) => {
+      const n = Object.keys(w).filter((k) => k.startsWith("project:") && w[k].open).length;
+      const initial = w[id]?.initial ?? { x: 140 + n * 28, y: 90 + n * 28 };
+      return { ...w, [id]: { open: true, z: nextZ(), origin, initial } };
+    });
+  }
+
+  function getApp(id: WindowId) {
+    if (id in APPS) return APPS[id as DesktopId];
+    const project = parseProjectWindowId(id);
+    return {
+      title: project?.title ?? "",
+      icon: <NoteIcon />,
+      initial: windows[id]?.initial ?? { x: 140, y: 90 },
+      width: 520,
+      render: () => <ProjectWindow folder={project?.folder ?? ""} title={project?.title ?? ""} />,
+    };
+  }
+
   function focusWindow(id: WindowId) {
     setWindowsHidden(false);
     setWindows((w) => ({ ...w, [id]: { ...w[id], z: nextZ() } }));
@@ -123,7 +155,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     setWindowsHidden((h) => !h);
   }
 
-  function handleIconPointerDown(id: WindowId, e: React.PointerEvent) {
+  function handleIconPointerDown(id: DesktopId, e: React.PointerEvent) {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const orig = iconOffset[id] ?? { x: 0, y: 0 };
     const origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -208,7 +240,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
 
       {openIds.map((id) => {
         const w = windows[id];
-        const app = APPS[id];
+        const app = getApp(id);
         return (
           <Window
             key={id}
@@ -218,18 +250,19 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             isActive={id === activeId}
             initial={app.initial}
             width={app.width}
+            expandOnMobile={!(id in APPS)}
             hidden={windowsHidden}
             origin={w.origin}
             getCloseOrigin={() => {
               const r = document
-                .querySelector(`[data-icon-id="${id}"]`)
+                .querySelector(`[data-icon-id="${id}"], [data-project-id="${id}"]`)
                 ?.getBoundingClientRect();
               return r && { x: r.left + r.width / 2, y: r.top + r.height / 2 };
             }}
             onClose={() => closeWindow(id)}
             onFocus={() => focusWindow(id)}
           >
-            {app.render()}
+            {app.render({ openProject })}
           </Window>
         );
       })}

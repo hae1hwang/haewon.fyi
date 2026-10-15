@@ -4,6 +4,7 @@ import { useState } from "react";
 import { site } from "@/data/site";
 import { useRequestedWidth } from "../Window";
 import { FolderIcon, NoteIcon } from "../icons";
+import { projectWindowId } from "../projects";
 
 const EXPANDED_WIDTH = 570;
 
@@ -29,7 +30,11 @@ const rowClass = (active: boolean) =>
     active ? "bg-accent text-white" : "text-black"
   }`;
 
-export function WorkWindow() {
+export function WorkWindow({
+  onOpenProject,
+}: {
+  onOpenProject: (folder: string, title: string, origin: { x: number; y: number }) => void;
+}) {
   const [query, setQuery] = useState("");
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -55,8 +60,18 @@ export function WorkWindow() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
-        <span className="aqua-field flex-1 px-2.5 py-1">
-          haewon.fyi ▸ work{selected && ` ▸ ${selected.name}`}
+        <span className="aqua-field min-w-0 flex-1 truncate px-2.5 py-1">
+          {/* on mobile, once a folder is open, the root collapses to "…" so the
+              path stays on one line */}
+          {selected ? (
+            <>
+              <span className="sm:hidden">…</span>
+              <span className="hidden sm:inline">haewon.fyi</span>
+            </>
+          ) : (
+            "haewon.fyi"
+          )}{" "}
+          ▸ work{selected && ` ▸ ${selected.name}`}
         </span>
         <label className="relative flex w-[150px] shrink-0 items-center rounded-[5px] border border-black/20 bg-white shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)] focus-within:border-[#4d90fe] focus-within:ring-[3px] focus-within:ring-[#4d90fe]/40 sm:w-[200px]">
           <svg
@@ -140,7 +155,15 @@ export function WorkWindow() {
           {items.map((item) => (
             <button
               key={item.title}
-              onClick={() => setSelectedItem(item.title)}
+              data-project-id={projectWindowId(selected?.name ?? "", item.title)}
+              onClick={(e) => {
+                setSelectedItem(item.title);
+                const r = e.currentTarget.getBoundingClientRect();
+                onOpenProject(selected?.name ?? "", item.title, {
+                  x: r.left + r.width / 2,
+                  y: r.top + r.height / 2,
+                });
+              }}
               className={rowClass(item.title === selectedItem)}
             >
               <NoteIcon className="h-4 w-4 shrink-0" />
