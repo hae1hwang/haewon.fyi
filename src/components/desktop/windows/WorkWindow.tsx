@@ -6,7 +6,7 @@ import { useRequestedWidth } from "../Window";
 import { FolderIcon, NoteIcon } from "../icons";
 import { projectWindowId } from "../projects";
 
-const EXPANDED_WIDTH = 570;
+const EXPANDED_WIDTH = 620;
 
 function Chevron() {
   return (
@@ -25,9 +25,9 @@ function Chevron() {
   );
 }
 
-const rowClass = (active: boolean) =>
+const rowClass = (active: boolean, dim = false) =>
   `flex w-full items-center gap-2 rounded-[5px] px-2 py-[3px] text-left text-[13px] font-normal ${
-    active ? "bg-accent text-white" : "text-black"
+    active ? "bg-accent text-white" : dim ? "text-black/40" : "text-black"
   }`;
 
 export function WorkWindow({
@@ -117,6 +117,19 @@ export function WorkWindow({
         </label>
       </div>
 
+      {/* column headers mirror the two columns below, so their divider lines up */}
+      <div className="flex shrink-0 border-t border-black/10 bg-[#f6f7f9] text-[12px] text-black/55">
+        <div className="min-w-0 flex-1 px-3.5 py-1 sm:w-[270px] sm:flex-none">Team</div>
+        <div
+          className={`min-w-0 flex-1 items-center border-l border-black/15 px-3.5 py-1 sm:flex ${
+            selected ? "flex" : "hidden"
+          }`}
+        >
+          <span className="flex-1">Project</span>
+          <span className="hidden w-[120px] shrink-0 sm:block">Platform</span>
+        </div>
+      </div>
+
       <div className="flex h-[280px] shrink-0 border-y border-black/10 bg-white">
         <div
           className="min-w-0 flex-1 overflow-y-auto p-1.5 sm:w-[270px] sm:flex-none"
@@ -158,24 +171,34 @@ export function WorkWindow({
               No results
             </p>
           )}
-          {items.map((item) => (
-            <button
-              key={item.title}
-              data-project-id={projectWindowId(selected?.name ?? "", item.title)}
-              onClick={(e) => {
-                setSelectedItem(item.title);
-                const r = e.currentTarget.getBoundingClientRect();
-                onOpenProject(selected?.name ?? "", item.title, {
-                  x: r.left + r.width / 2,
-                  y: r.top + r.height / 2,
-                });
-              }}
-              className={rowClass(item.title === selectedItem)}
-            >
-              <NoteIcon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{item.title}</span>
-            </button>
-          ))}
+          {items.map((item) =>
+            item.comingSoon ? (
+              <div key={item.title} className={rowClass(false, true)}>
+                <NoteIcon className="h-4 w-4 shrink-0 opacity-50" />
+                <span className="truncate">{item.title}</span>
+              </div>
+            ) : (
+              <button
+                key={item.title}
+                data-project-id={projectWindowId(selected?.name ?? "", item.title)}
+                onClick={(e) => {
+                  setSelectedItem(item.title);
+                  const r = e.currentTarget.getBoundingClientRect();
+                  onOpenProject(selected?.name ?? "", item.title, {
+                    x: r.left + r.width / 2,
+                    y: r.top + r.height / 2,
+                  });
+                }}
+                className={rowClass(item.title === selectedItem)}
+              >
+                <NoteIcon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">{item.title}</span>
+                <span className="hidden w-[120px] shrink-0 truncate opacity-60 sm:block">
+                  {item.platform}
+                </span>
+              </button>
+            )
+          )}
         </div>
       </div>
 

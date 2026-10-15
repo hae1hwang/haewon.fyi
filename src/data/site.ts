@@ -1,3 +1,6 @@
+export type WorkItem = { title: string; platform?: string; comingSoon?: boolean };
+export type WorkFolder = { name: string; items: WorkItem[] };
+
 export const site = {
   name: "Haewon Hwang",
   role: "Senior UX Designer",
@@ -106,10 +109,21 @@ export const site = {
   workFolders: [
     {
       name: "YouTube TV",
-      items: [{ title: "Library" }, { title: "Multiview" }, { title: "Watch" }],
+      items: [
+        { title: "Library", platform: "TV" },
+        { title: "Multiview", platform: "TV, Mobile/Tablet" },
+        { title: "Watch", platform: "TV" },
+      ],
     },
-    { name: "YouTube", items: [{ title: "Identity" }] },
-    { name: "Google Photos", items: [{ title: "Photo Books collage builder" }] },
-    { name: "Side projects", items: [{ title: "Untitled project" }] },
-  ],
+    {
+      name: "YouTube Living Room",
+      items: [{ title: "Identity", platform: "TV, Mobile" }],
+    },
+    {
+      name: "Google Photos",
+      items: [{ title: "Photo Books collage builder", platform: "Mobile, Web" }],
+    },
+    // comingSoon items are listed but don't open a window yet
+    { name: "Side projects", items: [{ title: "Coming soon", comingSoon: true }] },
+  ] as WorkFolder[],
 };
