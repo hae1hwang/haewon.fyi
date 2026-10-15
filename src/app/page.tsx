@@ -11,13 +11,7 @@ function formatLastUpdated(date: Date) {
     year: "numeric",
     timeZone: TIME_ZONE,
   });
-  const time = date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: TIME_ZONE,
-  });
-  return `Last updated ${day} @ ${time}`;
+  return `Last update ${day}`;
 }
 
 export default function Home() {
