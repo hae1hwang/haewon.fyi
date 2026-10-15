@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { site } from "@/data/site";
+import type { WorkFolder } from "@/data/site";
 import { useRequestedWidth } from "../Window";
 import { FolderIcon, NoteIcon } from "../icons";
 import { projectWindowId } from "../projects";
 
-const EXPANDED_WIDTH = 620;
+// window width once a folder is open: first column + project (+ platform) column
+const EXPANDED_WIDTH = { withPlatform: 620, withoutPlatform: 520 };
 
 function Chevron() {
   return (
@@ -30,27 +31,42 @@ const rowClass = (active: boolean, dim = false) =>
     active ? "bg-accent text-white" : dim ? "text-black/40" : "text-black"
   }`;
 
-export function WorkWindow({
+// Finder-style column view shared by the work and fun folders
+export function FinderWindow({
+  root,
+  folders: allFolders,
+  firstColumnLabel,
+  showPlatform,
   onOpenProject,
 }: {
+  root: string;
+  folders: WorkFolder[];
+  firstColumnLabel: string;
+  showPlatform: boolean;
   onOpenProject: (folder: string, title: string, origin: { x: number; y: number }) => void;
 }) {
   const [query, setQuery] = useState("");
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
-  const selected = site.workFolders.find((f) => f.name === selectedName);
+  const selected = allFolders.find((f) => f.name === selectedName);
 
   // opening a folder grows the window to the right to make room for its column
-  useRequestedWidth(selected ? EXPANDED_WIDTH : undefined);
+  useRequestedWidth(
+    selected
+      ? showPlatform
+        ? EXPANDED_WIDTH.withPlatform
+        : EXPANDED_WIDTH.withoutPlatform
+      : undefined
+  );
 
   // search only covers this folder: folder names, and project titles inside
   const q = query.trim().toLowerCase();
   const matches = (text: string) => text.toLowerCase().includes(q);
   const folders = q
-    ? site.workFolders.filter(
+    ? allFolders.filter(
         (f) => matches(f.name) || f.items.some((item) => matches(item.title))
       )
-    : site.workFolders;
+    : allFolders;
   const items = !selected
     ? []
     : !q || matches(selected.name)
@@ -71,7 +87,7 @@ export function WorkWindow({
           ) : (
             "haewon.fyi"
           )}{" "}
-          ▸ work{selected && ` ▸ ${selected.name}`}
+          ▸ {root}{selected && ` ▸ ${selected.name}`}
         </span>
         <label className="relative flex w-[150px] shrink-0 items-center rounded-[5px] border border-black/20 bg-white shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)] focus-within:border-[#4d90fe] focus-within:ring-[3px] focus-within:ring-[#4d90fe]/40 sm:w-[200px]">
           <svg
@@ -99,7 +115,7 @@ export function WorkWindow({
               }
             }}
             placeholder="Search"
-            aria-label="Search work"
+            aria-label={`Search ${root}`}
             spellCheck={false}
             autoComplete="off"
             className="w-full min-w-0 select-text bg-transparent py-[3px] pl-6 pr-6 text-[12px] text-black outline-none placeholder:text-black/40"
@@ -119,14 +135,14 @@ export function WorkWindow({
 
       {/* column headers mirror the two columns below, so their divider lines up */}
       <div className="flex shrink-0 border-t border-black/10 bg-[#f6f7f9] text-[12px] text-black/55">
-        <div className="min-w-0 flex-1 px-3.5 py-1 sm:w-[270px] sm:flex-none">Team</div>
+        <div className="min-w-0 flex-1 px-3.5 py-1 sm:w-[270px] sm:flex-none">{firstColumnLabel}</div>
         <div
           className={`min-w-0 flex-1 items-center border-l border-black/15 px-3.5 py-1 sm:flex ${
             selected ? "flex" : "hidden"
           }`}
         >
           <span className="flex-1">Project</span>
-          {selected && (
+          {selected && showPlatform && (
             <span className="hidden w-[120px] shrink-0 sm:block">Platform</span>
           )}
         </div>
@@ -195,9 +211,11 @@ export function WorkWindow({
               >
                 <NoteIcon className="h-4 w-4 shrink-0" />
                 <span className="flex-1 truncate">{item.title}</span>
-                <span className="hidden w-[120px] shrink-0 truncate opacity-60 sm:block">
-                  {item.platform}
-                </span>
+                {showPlatform && (
+                  <span className="hidden w-[120px] shrink-0 truncate opacity-60 sm:block">
+                    {item.platform}
+                  </span>
+                )}
               </button>
             )
           )}

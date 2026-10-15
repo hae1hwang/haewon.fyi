@@ -108,13 +108,19 @@ export const site = {
   ],
   // top-level folders in the work window; item titles are placeholders
   // until the case studies exist
+  // top-level folders in the fun window; placeholders until there's real content
+  funFolders: [
+    { name: "Photography", items: [{ title: "Coming soon", comingSoon: true }] },
+    { name: "Side projects", items: [{ title: "Coming soon", comingSoon: true }] },
+  ] as WorkFolder[],
   workFolders: [
     {
       name: "YouTube TV",
       items: [
-        { title: "Library", platform: "TV" },
         { title: "Multiview", platform: "TV, Mobile/Tablet" },
         { title: "Watch", platform: "TV" },
+        { title: "Library", platform: "TV" },
+        { title: "Identity", platform: "TV" },
       ],
     },
     {
@@ -123,9 +129,7 @@ export const site = {
     },
     {
       name: "Google Photos",
-      items: [{ title: "Photo Books collage builder", platform: "Mobile, Web" }],
+      items: [{ title: "Collages", platform: "Mobile, Web" }],
     },
-    // comingSoon items are listed but don't open a window yet
-    { name: "Side projects", items: [{ title: "Coming soon", comingSoon: true }] },
   ] as WorkFolder[],
 };

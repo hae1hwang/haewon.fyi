@@ -5,10 +5,10 @@ import { Wallpaper } from "./Wallpaper";
 import { DesktopIcon } from "./DesktopIcon";
 import { Footer } from "./Footer";
 import { Window } from "./Window";
-import { FolderIcon, NoteIcon, MailIcon } from "./icons";
+import { NoteIcon, MailIcon, WorkFolderIcon, FunFolderIcon } from "./icons";
 import { AboutWindow } from "./windows/AboutWindow";
-import { FunWindow } from "./windows/FunWindow";
-import { WorkWindow } from "./windows/WorkWindow";
+import { FinderWindow } from "./windows/FinderWindow";
+import { site } from "@/data/site";
 import { ContactWindow } from "./windows/ContactWindow";
 import { ProjectWindow } from "./windows/ProjectWindow";
 import { parseProjectWindowId, projectWindowId } from "./projects";
@@ -45,17 +45,33 @@ const APPS: Record<
   },
   fun: {
     title: "fun",
-    icon: <FolderIcon />,
+    icon: <FunFolderIcon />,
     initial: { x: 90, y: 100 },
-    width: 560,
-    render: () => <FunWindow />,
+    width: 420,
+    render: ({ openProject }) => (
+      <FinderWindow
+        root="fun"
+        folders={site.funFolders}
+        firstColumnLabel="Name"
+        showPlatform={false}
+        onOpenProject={openProject}
+      />
+    ),
   },
   work: {
     title: "work",
-    icon: <FolderIcon />,
+    icon: <WorkFolderIcon />,
     initial: { x: 60, y: 40 },
     width: 420,
-    render: ({ openProject }) => <WorkWindow onOpenProject={openProject} />,
+    render: ({ openProject }) => (
+      <FinderWindow
+        root="work"
+        folders={site.workFolders}
+        firstColumnLabel="Team"
+        showPlatform
+        onOpenProject={openProject}
+      />
+    ),
   },
   contact: {
     title: "Contact",
