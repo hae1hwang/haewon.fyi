@@ -45,7 +45,7 @@ const APPS: Record<
     initial: { x: 40, y: 60 },
     width: 460,
     height: 545,
-    render: () => <AboutWindow />,
+    render: ({ openProject }) => <AboutWindow onOpenProject={openProject} />,
   },
   fun: {
     title: "fun",

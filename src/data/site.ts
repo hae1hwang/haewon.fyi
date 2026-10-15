@@ -1,3 +1,5 @@
+// a phrase in the about timeline that opens a project from the work folder
+export type AboutLink = { text: string; folder: string; project: string };
 export type WorkItem = { title: string; platform?: string; comingSoon?: boolean };
 export type WorkFolder = { name: string; items: WorkItem[] };
 
@@ -9,7 +11,7 @@ export const site = {
   email: "haewonhwang1@gmail.com",
   // Formspree form that delivers the Contact window's messages
   formspreeId: "mrperpko",
-  resumeUrl: "#",
+  resumeUrl: "/haewon-hwang-resume.pdf",
   socials: [
     { label: "LinkedIn", href: "https://www.linkedin.com/in/haewonhwang/" },
     { label: "Dribbble", href: "#" },
@@ -20,17 +22,22 @@ export const site = {
       {
         year: "2026",
         text: "YouTube TV, senior designer. Most recently, led the product and design direction for innovative experiences such as Multiview from 0 → 100. Also the design lead for core experiences such as the Library and Watch pages, sign-in and identity across TV, web, mobile, and tablet, and did visioning/redesign work alongside vis D.",
-        links: ["Multiview", "Library", "Watch"],
+        links: [
+          { text: "Multiview", folder: "YouTube TV", project: "Multiview" },
+          { text: "Library", folder: "YouTube TV", project: "Library" },
+          { text: "Watch", folder: "YouTube TV", project: "Watch" },
+          { text: "sign-in and identity", folder: "YouTube TV", project: "Identity" },
+        ],
       },
       {
         year: "2018",
         text: "YouTube Living Room, senior designer. Owned the entire Identity domain, creating ways to sign in on the TV, as well as everything identity-related across platforms.",
-        links: ["Identity"],
+        links: [{ text: "Identity", folder: "YouTube Living Room", project: "Identity" }],
       },
       {
         year: "2017",
         text: "Google Photos, designer. Created the collage building experience for Photo Books on mobile, tablet and web.",
-        links: ["collage"],
+        links: [{ text: "collage", folder: "Google Photos", project: "Creation & editing" }],
       },
       {
         year: "2014",
@@ -38,7 +45,7 @@ export const site = {
       },
     ],
     education:
-      "Education: Cornell University 2017, maj. Info. Sci; min. Business, and (almost) min. Fine Arts.",
+      "Education: Cornell University 2017, BA in Information Science",
   },
   experience: [
     {
@@ -129,7 +136,7 @@ export const site = {
     },
     {
       name: "Google Photos",
-      items: [{ title: "Collages", platform: "Mobile, Web" }],
+      items: [{ title: "Creation & editing", platform: "Mobile, Web" }],
     },
   ] as WorkFolder[],
 };
