@@ -5,9 +5,9 @@ import { Desktop } from "@/components/desktop/Desktop";
 const TIME_ZONE = "America/New_York";
 
 function formatLastUpdated(date: Date) {
-  const day = date.toLocaleDateString("en-GB", {
+  const day = date.toLocaleDateString("en-US", {
+    month: "short",
     day: "numeric",
-    month: "long",
     year: "numeric",
     timeZone: TIME_ZONE,
   });
@@ -17,7 +17,7 @@ function formatLastUpdated(date: Date) {
     hour12: true,
     timeZone: TIME_ZONE,
   });
-  return `${day} · ${time}`;
+  return `Last updated ${day} @ ${time}`;
 }
 
 export default function Home() {
