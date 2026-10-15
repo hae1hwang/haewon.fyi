@@ -37,6 +37,12 @@ button {
   font-family: inherit;
 }
 
+/* native macOS pointing-hand affordance on anything clickable */
+a[href],
+button {
+  cursor: pointer;
+}
+
 ::selection {
   background: var(--aqua-accent);
   color: #fff;

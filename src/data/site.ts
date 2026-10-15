@@ -2,21 +2,38 @@ export const site = {
   name: "Haewon Hwang",
   role: "Senior UX Designer",
   tagline: "I design products that make complicated things feel obvious.",
-  location: "San Francisco, CA",
-  email: "hello@haewon.fyi",
+  location: "New York, NY",
+  email: "haewonhwang1@gmail.com",
   resumeUrl: "#",
   socials: [
-    { label: "LinkedIn", href: "#" },
+    { label: "LinkedIn", href: "https://www.linkedin.com/in/haewonhwang/" },
     { label: "Dribbble", href: "#" },
     { label: "Read.cv", href: "#" },
   ],
   about: {
-    bio: [
-      "I'm a senior UX designer currently leading design for YouTube TV's core surfaces — from the Library experience to sign-in and identity, across TV, web, mobile, and tablet.",
-      "Before YouTube, I led UX for new editing and creation features in Google Photos, and years earlier was the first and only designer at an early-stage startup, where I built the company's design system from scratch.",
-      "I studied Information Science at Cornell, with a business minor and an almost-finished fine arts minor. Outside of work, I write about design craft and spend too much time redesigning things that don't need redesigning.",
+    timeline: [
+      {
+        year: "2026",
+        text: "YouTube TV, senior designer. Most recently, led the product and design direction for innovative experiences such as Multiview from 0 → 100. Also the design lead for core experiences such as the Library and Watch pages, sign-in and identity across TV, web, mobile, and tablet, and did visioning/redesign work alongside vis D.",
+        links: ["Multiview", "Library", "Watch"],
+      },
+      {
+        year: "2018",
+        text: "YouTube Living Room, senior designer. Owned the entire Identity domain, creating ways to sign in on the TV, as well as everything identity-related across platforms.",
+        links: ["Identity"],
+      },
+      {
+        year: "2017",
+        text: "Google Photos, designer. Created the collage building experience for Photo Books on mobile, tablet and web.",
+        links: ["collage"],
+      },
+      {
+        year: "2014",
+        text: "Internships: Signac, Uber, Ericsson Mediaroom, Facebook FBU.",
+      },
     ],
-    companies: ["YouTube", "Google", "Uber", "Facebook"],
+    education:
+      "Education: Cornell University 2017, maj. Info. Sci; min. Business, and (almost) min. Fine Arts.",
   },
   experience: [
     {

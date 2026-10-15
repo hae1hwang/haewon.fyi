@@ -4,11 +4,6 @@ import { FolderIcon } from "../icons";
 export function WorkWindow() {
   return (
     <div className="flex h-full flex-col">
-      <div className="aqua-toolbar flex shrink-0 items-center gap-4 px-3 py-1.5 text-[12px] text-black/70">
-        {["File", "Edit", "View", "Favorites", "Help"].map((m) => (
-          <span key={m}>{m}</span>
-        ))}
-      </div>
       <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
         <span>Address</span>
         <span className="aqua-field flex-1 px-2.5 py-1">

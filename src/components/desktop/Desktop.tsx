@@ -1,16 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Wallpaper } from "./Wallpaper";
 import { DesktopIcon } from "./DesktopIcon";
+import { Footer } from "./Footer";
 import { Window } from "./Window";
-import { FolderIcon, NoteIcon, ResumeIcon, MailIcon } from "./icons";
+import { FolderIcon, NoteIcon, MailIcon } from "./icons";
 import { AboutWindow } from "./windows/AboutWindow";
-import { ResumeWindow } from "./windows/ResumeWindow";
+import { FunWindow } from "./windows/FunWindow";
 import { WorkWindow } from "./windows/WorkWindow";
 import { ContactWindow } from "./windows/ContactWindow";
 
-type WindowId = "about" | "resume" | "work" | "contact";
+type WindowId = "about" | "fun" | "work" | "contact";
 
 const APPS: Record<
   WindowId,
@@ -31,12 +32,12 @@ const APPS: Record<
     width: 460,
     render: () => <AboutWindow />,
   },
-  resume: {
-    title: "resume.doc",
-    icon: <ResumeIcon />,
+  fun: {
+    title: "fun",
+    icon: <FolderIcon />,
     initial: { x: 90, y: 100 },
     width: 560,
-    render: () => <ResumeWindow />,
+    render: () => <FunWindow />,
   },
   work: {
     title: "work",
@@ -59,20 +60,41 @@ const APPS: Record<
 const DESKTOP_ICONS: { id: WindowId; label: string }[] = [
   { id: "about", label: "about.txt" },
   { id: "work", label: "work" },
-  { id: "resume", label: "resume.doc" },
+  { id: "fun", label: "fun" },
   { id: "contact", label: "Contact" },
 ];
 
 type WinState = { open: boolean; z: number };
+type Offset = { x: number; y: number };
 
-export function Desktop() {
+export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const [windows, setWindows] = useState<Record<WindowId, WinState>>({
     about: { open: false, z: 0 },
-    resume: { open: false, z: 0 },
+    fun: { open: false, z: 0 },
     work: { open: false, z: 0 },
     contact: { open: false, z: 0 },
   });
   const [zCounter, setZCounter] = useState(1);
+  // drag offsets from each icon's natural place in the centered row, so the
+  // row keeps reflowing on resize and dragged icons simply sit on top of it
+  const [iconOffset, setIconOffset] = useState<Partial<Record<WindowId, Offset>>>({});
+  const [lastDragged, setLastDragged] = useState<WindowId | null>(null);
+  const draggingRef = useRef(false);
+  // "show desktop": clicking the background slides open windows to the edges
+  const [windowsHidden, setWindowsHidden] = useState(false);
+
+  useEffect(() => {
+    let width = window.innerWidth;
+    function onResize() {
+      // reflow resets the arrangement so nothing is stranded off-screen
+      // (ignore height-only changes, e.g. mobile address bar)
+      if (window.innerWidth === width || draggingRef.current) return;
+      width = window.innerWidth;
+      setIconOffset({});
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   function nextZ() {
     const z = zCounter + 1;
@@ -81,15 +103,55 @@ export function Desktop() {
   }
 
   function openWindow(id: WindowId) {
+    setWindowsHidden(false);
     setWindows((w) => ({ ...w, [id]: { open: true, z: nextZ() } }));
   }
 
   function focusWindow(id: WindowId) {
+    setWindowsHidden(false);
     setWindows((w) => ({ ...w, [id]: { ...w[id], z: nextZ() } }));
   }
 
   function closeWindow(id: WindowId) {
     setWindows((w) => ({ ...w, [id]: { ...w[id], open: false } }));
+  }
+
+  function handleBackgroundPointerDown(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest("button, a, .aqua-window")) return;
+    setWindowsHidden((h) => !h);
+  }
+
+  function handleIconPointerDown(id: WindowId, e: React.PointerEvent) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const orig = iconOffset[id] ?? { x: 0, y: 0 };
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let moved = false;
+    draggingRef.current = true;
+
+    function onMove(ev: PointerEvent) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!moved && Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;
+      if (!moved) {
+        moved = true;
+        setLastDragged(id);
+      }
+      // keep the whole 140px box inside the viewport
+      const cx = Math.min(Math.max(dx, -rect.left), window.innerWidth - rect.right);
+      const cy = Math.min(Math.max(dy, -rect.top), window.innerHeight - rect.bottom);
+      setIconOffset((o) => ({ ...o, [id]: { x: orig.x + cx, y: orig.y + cy } }));
+    }
+
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      draggingRef.current = false;
+      if (!moved) openWindow(id);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
   }
 
   const activeId = useMemo(() => {
@@ -110,20 +172,32 @@ export function Desktop() {
   );
 
   return (
-    <main className="relative h-full w-full select-none overflow-hidden">
+    <main
+      onPointerDown={handleBackgroundPointerDown}
+      className="relative h-full w-full select-none overflow-hidden"
+    >
       <Wallpaper />
 
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 z-[1] flex items-center justify-center">
         <div className="flex max-w-[calc(100vw-32px)] flex-row flex-wrap justify-center gap-[8px]">
           {DESKTOP_ICONS.map((d) => (
-            <DesktopIcon
+            <div
               key={d.id}
-              label={d.label}
-              icon={APPS[d.id].icon}
-              iconSize={APPS[d.id].iconSize}
-              iconOffsetTop={APPS[d.id].iconOffsetTop}
-              onOpen={() => openWindow(d.id)}
-            />
+              className="relative"
+              style={{
+                transform: `translate(${iconOffset[d.id]?.x ?? 0}px, ${iconOffset[d.id]?.y ?? 0}px)`,
+                zIndex: lastDragged === d.id ? 10 : undefined,
+              }}
+            >
+              <DesktopIcon
+                label={d.label}
+                icon={APPS[d.id].icon}
+                iconSize={APPS[d.id].iconSize}
+                iconOffsetTop={APPS[d.id].iconOffsetTop}
+                onPointerDown={(e) => handleIconPointerDown(d.id, e)}
+                onKeyboardOpen={() => openWindow(d.id)}
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -140,6 +214,7 @@ export function Desktop() {
             isActive={id === activeId}
             initial={app.initial}
             width={app.width}
+            hidden={windowsHidden}
             onClose={() => closeWindow(id)}
             onFocus={() => focusWindow(id)}
           >
@@ -147,6 +222,8 @@ export function Desktop() {
           </Window>
         );
       })}
+
+      <Footer lastUpdated={lastUpdated} />
     </main>
   );
 }

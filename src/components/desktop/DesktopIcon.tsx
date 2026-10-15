@@ -7,21 +7,28 @@ export function DesktopIcon({
   icon,
   iconSize = 110,
   iconOffsetTop = 0,
-  onOpen,
+  onPointerDown,
+  onKeyboardOpen,
 }: {
   label: string;
   icon: ReactNode;
   iconSize?: number;
   iconOffsetTop?: number;
-  onOpen: () => void;
+  onPointerDown: (e: React.PointerEvent) => void;
+  onKeyboardOpen: () => void;
 }) {
   return (
     <button
-      onClick={onOpen}
-      className="group relative h-[140px] w-[140px] shrink-0 outline-none"
+      onPointerDown={onPointerDown}
+      // pointer clicks are handled by the drag logic; detail === 0 is a
+      // keyboard-triggered click (Enter / Space)
+      onClick={(e) => {
+        if (e.detail === 0) onKeyboardOpen();
+      }}
+      className="group relative h-[140px] w-[140px] shrink-0 touch-none outline-none"
     >
       <span
-        className="absolute left-1/2 -translate-x-1/2 drop-shadow-[0_4px_5px_rgba(0,0,0,0.55)] transition-transform group-active:scale-95 [&>img]:h-full [&>img]:w-full [&>svg]:h-full [&>svg]:w-full"
+        className="absolute left-1/2 -translate-x-1/2 drop-shadow-[0_4px_5px_rgba(0,0,0,0.55)] [&>img]:pointer-events-none [&>img]:h-full [&>img]:w-full [&>img]:[-webkit-user-drag:none] [&>svg]:h-full [&>svg]:w-full"
         style={{ height: iconSize, width: iconSize, top: iconOffsetTop }}
       >
         {icon}

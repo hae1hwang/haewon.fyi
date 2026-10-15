@@ -3,17 +3,12 @@ import { site } from "@/data/site";
 export function ResumeWindow() {
   return (
     <div className="flex h-full flex-col">
-      <div className="aqua-toolbar flex shrink-0 items-center justify-between gap-4 px-3 py-1.5 text-[12px] text-black/70">
-        <div className="flex gap-4">
-          {["File", "Edit", "View", "Help"].map((m) => (
-            <span key={m}>{m}</span>
-          ))}
-        </div>
-        <a href={site.resumeUrl} className="aqua-button px-3 py-1 text-[11px] font-medium">
-          Download PDF
-        </a>
-      </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-white p-5 text-[13px] leading-relaxed text-[#1a1a1a]">
+        <div className="mb-3 flex justify-end">
+          <a href={site.resumeUrl} className="aqua-button px-3 py-1 text-[11px] font-medium">
+            Download PDF
+          </a>
+        </div>
         <div className="mb-4 flex items-baseline justify-between border-b-2 border-[#1a1a1a] pb-2">
           <span className="italic">{site.name.toLowerCase()}</span>
           <span className="text-[11px] text-[#777]">haewon.fyi</span>

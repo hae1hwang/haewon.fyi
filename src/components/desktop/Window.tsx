@@ -6,12 +6,15 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+const SLIVER = 48;
+
 export function Window({
   title,
   zIndex,
   isActive,
   initial,
   width = 480,
+  hidden = false,
   onClose,
   onFocus,
   children,
@@ -22,6 +25,7 @@ export function Window({
   isActive: boolean;
   initial: { x: number; y: number };
   width?: number;
+  hidden?: boolean;
   onClose: () => void;
   onFocus: () => void;
   children: ReactNode;
@@ -45,6 +49,29 @@ export function Window({
     window.addEventListener("resize", clampToViewport);
     return () => window.removeEventListener("resize", clampToViewport);
   }, []);
+
+  // slide to the nearest side edge, leaving a sliver to click to bring it back
+  useEffect(() => {
+    const el = windowRef.current;
+    if (!el) return;
+    if (!hidden) {
+      el.style.transform = "";
+      return;
+    }
+    const rect = el.getBoundingClientRect();
+    const toLeft = rect.left + rect.width / 2 < window.innerWidth / 2;
+    const dx = toLeft ? -(rect.right - SLIVER) : window.innerWidth - rect.left - SLIVER;
+    el.style.transform = `translateX(${dx}px)`;
+  }, [hidden]);
+
+  useEffect(() => {
+    if (!isActive || hidden) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isActive, hidden, onClose]);
 
   useEffect(() => {
     if (!dragging) return;
@@ -101,6 +128,7 @@ export function Window({
         width: `min(92vw, ${width}px)`,
         maxHeight: "88vh",
         zIndex,
+        transition: "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
       }}
       onPointerDown={onFocus}
     >
@@ -110,7 +138,7 @@ export function Window({
           isActive ? "aqua-titlebar" : "aqua-titlebar-inactive"
         }`}
       >
-        <div className="flex shrink-0 items-center gap-[7px]">
+        <div className="flex shrink-0 items-center">
           <button
             data-titlebar-button
             aria-label="Close"
@@ -119,13 +147,11 @@ export function Window({
           >
             <span className="aqua-dot-glyph">✕</span>
           </button>
-          <span className="aqua-dot aqua-dot-yellow" aria-hidden />
-          <span className="aqua-dot aqua-dot-green" aria-hidden />
         </div>
         <span className="flex-1 truncate px-2 text-center text-[13px] font-medium text-black/80">
           {title}
         </span>
-        <div className="w-[52px] shrink-0" aria-hidden />
+        <div className="w-[13px] shrink-0" aria-hidden />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto bg-chrome">{children}</div>
