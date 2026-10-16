@@ -42,7 +42,7 @@ const MOBILE_QUERY = "(max-width: 639px)";
 const MOBILE_SIDE_PADDING = 10;
 // an expanded window hugs the screen edges, but leaves room under it so the
 // desktop footer stays visible
-const MOBILE_EXPANDED_EDGE = 2;
+const MOBILE_EXPANDED_EDGE = 10;
 // (the mobile footer is sized to this same height — see Footer.tsx)
 const MOBILE_FOOTER_ROOM = 40;
 
