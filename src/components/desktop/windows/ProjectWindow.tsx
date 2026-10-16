@@ -1,9 +1,10 @@
-export function ProjectWindow({ folder, title }: { folder: string; title: string }) {
+export function ProjectWindow({ message }: { message: string }) {
   return (
-    <div className="min-h-full bg-white p-5 text-[13px] leading-relaxed text-[#1a1a1a]">
-      <p className="mb-1 text-[11px] text-[#777]">{folder}</p>
-      <h2 className="mb-4 text-[18px] font-semibold">{title}</h2>
-      <p className="text-[#777]">Case study coming soon.</p>
+    // laid out like a document page: a comfortable reading column with generous margins
+    <div className="min-h-full bg-white px-8 py-10 text-[13px] leading-relaxed text-[#666] sm:px-14 sm:py-12">
+      <div className="mx-auto max-w-[680px]">
+        <p>{message}</p>
+      </div>
     </div>
   );
 }

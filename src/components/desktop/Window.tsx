@@ -70,6 +70,9 @@ export function Window({
   width = 480,
   hidden = false,
   expandOnMobile = false,
+  centerOnOpen = false,
+  centerOffset = { x: 0, y: 0 },
+  windowHeight,
   origin,
   getCloseOrigin,
   onClose,
@@ -86,6 +89,12 @@ export function Window({
   // on mobile, nearly fill the screen (still a draggable, rounded window)
   // instead of floating centered at its natural size
   expandOnMobile?: boolean;
+  // on desktop, open exactly centered on screen (mobile is always centered)
+  centerOnOpen?: boolean;
+  // nudges a centered window off the exact middle, in px
+  centerOffset?: { x: number; y: number };
+  // fixed height on desktop (a CSS length); otherwise the height follows the content
+  windowHeight?: string;
   origin?: { x: number; y: number };
   getCloseOrigin?: () => { x: number; y: number } | undefined;
   onClose: () => void;
@@ -102,7 +111,8 @@ export function Window({
   // on mobile a window starts centered by CSS; once grabbed it switches to
   // explicit left/top coordinates like on desktop
   const [detached, setDetached] = useState(false);
-  const centeredByCss = isMobile && !expandOnMobile && !detached;
+  const centeredByCss =
+    (isMobile ? !expandOnMobile : centerOnOpen) && !detached;
   const windowRef = useRef<HTMLDivElement>(null);
   const [widthOverride, setWidthOverride] = useState<number>();
   const closingRef = useRef(false);
@@ -113,7 +123,7 @@ export function Window({
   // where the window's center rests on screen, ignoring any running transform
   function restingCenter(el: HTMLElement) {
     return centeredByCss
-      ? { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+      ? { x: window.innerWidth / 2 + centerOffset.x, y: window.innerHeight / 2 + centerOffset.y }
       : { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 };
   }
 
@@ -277,18 +287,22 @@ export function Window({
             }
           : centeredByCss
           ? {
-              left: "50%",
-              top: "50%",
+              left: `calc(50% + ${centerOffset.x}px)`,
+              top: `calc(50% + ${centerOffset.y}px)`,
               // the standalone `translate` property composes with the
               // `transform` used by the animations, so they don't fight
               translate: "-50% -50%",
               maxHeight: "88vh",
-              width: `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`,
+              ...(!isMobile && windowHeight ? { height: windowHeight } : {}),
+              width: isMobile
+                ? `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`
+                : `min(92vw, ${widthOverride ?? width}px)`,
             }
           : {
               left: pos.x,
               top: pos.y,
               maxHeight: "88vh",
+              ...(!isMobile && windowHeight ? { height: windowHeight } : {}),
               width: isMobile
                 ? `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`
                 : `min(92vw, ${widthOverride ?? width}px)`,

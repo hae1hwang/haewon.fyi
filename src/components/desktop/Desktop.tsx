@@ -84,7 +84,7 @@ const APPS: Record<
     ),
   },
   contact: {
-    title: "Contact",
+    title: "contact",
     icon: <MailIcon shadowed />,
     iconSize: 96,
     iconOffsetTop: 10,
@@ -99,10 +99,17 @@ const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
   { id: "about", label: "about.txt" },
   { id: "work", label: "work" },
   { id: "fun", label: "fun" },
-  { id: "contact", label: "Contact" },
+  { id: "contact", label: "contact" },
 ];
 
-const PROJECT_WINDOW = { width: 520, height: 260 };
+// Project windows are sized like a document window, as if full case studies
+// were inside: wide, and tall for the screen. Content scrolls inside.
+const PROJECT_WINDOW = {
+  width: 820,
+  maxHeight: 640,
+  heightVh: 70,
+  css: "min(70vh, 640px)", // keep in sync with the two numbers above
+};
 
 // The part of the screen new windows open in, as fractions of the viewport:
 // roughly the middle, leaving the edges and the footer clear.
@@ -151,7 +158,49 @@ function pickWindowPosition(
   return { x: Math.round(pick.x), y: Math.round(pick.y) };
 }
 
-type WinState = { open: boolean; z: number; origin?: Offset; initial?: Offset };
+// Project windows cascade diagonally down and to the right, like files opening
+// one after another on macOS. The first is dead centre; each next one steps
+// down-right so the previous window's title bar stays visible. Every step has
+// its own x and y, so no two windows line up on either axis.
+//
+// The diagonal only has so much room, so once the steps run out the cascade
+// wraps: it restarts from the top-left end of the same diagonal and works
+// its way back down towards the centre.
+const CASCADE_STEP = { x: 30, y: 32 }; // y matches the title bar height
+
+function slotOffset(slot: number): Offset {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const w = Math.min(vw * 0.92, PROJECT_WINDOW.width);
+  const h = Math.min((vh * PROJECT_WINDOW.heightVh) / 100, PROJECT_WINDOW.maxHeight);
+  const stepsX = ((vw - w) / 2 - 12) / CASCADE_STEP.x;
+  const downSteps = Math.min(stepsX, (vh / 2 - h / 2 - 48) / CASCADE_STEP.y); // footer below
+  const upSteps = Math.min(stepsX, (vh / 2 - h / 2 - 12) / CASCADE_STEP.y);
+  // always allow at least two steps, even on small screens
+  const down = Math.max(2, Math.floor(downSteps));
+  const up = Math.max(2, Math.floor(upSteps));
+  // order of positions along the diagonal: centre, then down-right to the far
+  // end, then wrap to the far up-left end and come back to just before centre
+  const order = [
+    0,
+    ...Array.from({ length: down }, (_, i) => i + 1),
+    ...Array.from({ length: up }, (_, i) => i - up),
+  ];
+  const step = order[slot % order.length];
+  // if even the wrapped cascade fills up, each extra lap is shifted a little so
+  // a window never lands exactly on top of another
+  const lap = Math.floor(slot / order.length);
+  return { x: step * CASCADE_STEP.x + lap * 10, y: step * CASCADE_STEP.y + lap * 8 };
+}
+
+type WinState = {
+  open: boolean;
+  z: number;
+  origin?: Offset;
+  initial?: Offset;
+  // project windows: which stagger position around the centre this one holds
+  slot?: number;
+};
 
 export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const [windows, setWindows] = useState<Record<WindowId, WinState>>({
@@ -202,29 +251,37 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     }));
   }
 
-  // each project file opens in its own window
+  // each project file opens in its own window, centered on screen
   function openProject(folder: string, title: string, origin: Offset) {
     const id = projectWindowId(folder, title);
     setWindowsHidden(false);
-    const initial = windows[id]?.open
-      ? undefined
-      : pickWindowPosition(PROJECT_WINDOW.width, PROJECT_WINDOW.height, { x: 140, y: 90 });
+    // the first project window is dead centre; each further one takes the
+    // lowest stagger slot not held by a window that is still open
+    const alreadyOpen = windows[id]?.open;
+    const taken = new Set(
+      Object.entries(windows)
+        .filter(([k, v]) => k.startsWith("project:") && v.open)
+        .map(([, v]) => v.slot)
+    );
+    let slot = 0;
+    while (taken.has(slot)) slot++;
     setWindows((w) => ({
       ...w,
-      [id]: { open: true, z: nextZ(), origin, initial: initial ?? w[id]?.initial },
+      [id]: { open: true, z: nextZ(), origin, slot: alreadyOpen ? w[id]?.slot : slot },
     }));
   }
 
   function getApp(id: WindowId) {
     if (id in APPS) return APPS[id as DesktopId];
     const project = parseProjectWindowId(id);
+    const folder = [...site.workFolders, ...site.funFolders].find((f) => f.name === project?.folder);
     return {
-      title: project?.title ?? "",
+      // "Project · Team", e.g. "Multiview · YouTube TV"
+      title: project ? `${project.title} · ${project.folder}` : "",
       icon: <NoteIcon />,
       initial: { x: 140, y: 90 },
       width: PROJECT_WINDOW.width,
-      height: PROJECT_WINDOW.height,
-      render: () => <ProjectWindow folder={project?.folder ?? ""} title={project?.title ?? ""} />,
+      render: () => <ProjectWindow message={folder?.placeholder ?? "Coming soon"} />,
     };
   }
 
@@ -376,6 +433,9 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             initial={w.initial ?? app.initial}
             width={app.width}
             expandOnMobile={!(id in APPS)}
+            centerOnOpen={!(id in APPS)}
+            centerOffset={slotOffset(w.slot ?? 0)}
+            windowHeight={id in APPS ? undefined : PROJECT_WINDOW.css}
             hidden={windowsHidden}
             origin={w.origin}
             getCloseOrigin={() => {

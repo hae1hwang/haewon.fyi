@@ -1,7 +1,8 @@
 // a phrase in the about timeline that opens a project from the work folder
 export type AboutLink = { text: string; folder: string; project: string };
 export type WorkItem = { title: string; platform?: string; comingSoon?: boolean };
-export type WorkFolder = { name: string; items: WorkItem[] };
+// `placeholder` is what the folder's project windows say until there are case studies
+export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string };
 
 export const site = {
   name: "Haewon Hwang",
@@ -123,6 +124,7 @@ export const site = {
   workFolders: [
     {
       name: "YouTube TV",
+      placeholder: "Stay tuned...",
       items: [
         { title: "Multiview", platform: "TV, Mobile/Tablet" },
         { title: "Watch", platform: "TV" },
@@ -132,10 +134,12 @@ export const site = {
     },
     {
       name: "YouTube Living Room",
+      placeholder: "Stay tuned...",
       items: [{ title: "Identity", platform: "TV, Mobile" }],
     },
     {
       name: "Google Photos",
+      placeholder: "Coming soon",
       items: [{ title: "Creation & editing", platform: "Mobile, Web" }],
     },
   ] as WorkFolder[],
