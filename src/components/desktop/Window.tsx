@@ -18,6 +18,13 @@ function clamp(value: number, min: number, max: number) {
 
 const SLIVER = 48;
 
+// fields that bring up the on-screen keyboard
+const isTextField = (el: EventTarget) =>
+  el instanceof HTMLElement &&
+  el.matches(
+    'textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="hidden"])'
+  );
+
 // while dragging, a window may be pushed past the screen edges, but never so
 // far that it can't be grabbed again: a sliver stays visible horizontally and
 // the title bar stays on screen vertically
@@ -114,6 +121,41 @@ export function Window({
   // on mobile a window starts centered by CSS; once grabbed it switches to
   // explicit left/top coordinates like on desktop
   const [detached, setDetached] = useState(false);
+  // While a text field has focus on a phone the keyboard is up: the window pins to
+  // the top of what's visible (instead of staying centred in the full screen,
+  // which makes it jump as the keyboard comes and goes between fields).
+  // Holds the visible area while pinned, otherwise null.
+  const [keyboard, setKeyboard] = useState<{ height: number; top: number } | null>(null);
+  const keyboardUp = keyboard !== null;
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pinnedForKeyboard = isMobile && !expandOnMobile && keyboardUp;
+
+  function readVisibleArea() {
+    const vv = window.visualViewport;
+    return { height: vv?.height ?? window.innerHeight, top: vv?.offsetTop ?? 0 };
+  }
+  function onFieldFocus(e: React.FocusEvent) {
+    clearTimeout(blurTimer.current);
+    if (isMobile && !expandOnMobile && isTextField(e.target)) setKeyboard(readVisibleArea());
+  }
+  function onFieldBlur() {
+    // a short delay, so moving from one field to the next doesn't un-pin in between
+    clearTimeout(blurTimer.current);
+    blurTimer.current = setTimeout(() => setKeyboard(null), 150);
+  }
+  useEffect(() => {
+    if (!keyboardUp) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setKeyboard({ height: vv.height, top: vv.offsetTop });
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [keyboardUp]);
+  useEffect(() => () => clearTimeout(blurTimer.current), []);
   const centeredByCss =
     (isMobile ? !expandOnMobile : centerOnOpen) && !detached;
   const windowRef = useRef<HTMLDivElement>(null);
@@ -281,7 +323,16 @@ export function Window({
       ref={windowRef}
       className="aqua-window absolute flex flex-col"
       style={{
-        ...(isMobile && expandOnMobile
+        ...(pinnedForKeyboard
+          ? {
+              left: MOBILE_SIDE_PADDING,
+              top: keyboard.top + MOBILE_SIDE_PADDING,
+              translate: "none",
+              width: `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`,
+              // never taller than the visible area, so the fields stay above the keyboard
+              maxHeight: Math.max(160, keyboard.height - MOBILE_SIDE_PADDING * 2),
+            }
+          : isMobile && expandOnMobile
           ? {
               left: pos.x,
               top: pos.y,
@@ -312,9 +363,13 @@ export function Window({
             }),
         zIndex,
         transition:
-          "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+          "transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1)" +
+          // glide to and from the pinned position (but never lag a drag)
+          (isMobile && !dragging ? ", top 0.25s ease, translate 0.25s ease" : ""),
       }}
       onPointerDown={onFocus}
+      onFocus={onFieldFocus}
+      onBlur={onFieldBlur}
     >
       <div
         onPointerDown={onTitlePointerDown}
