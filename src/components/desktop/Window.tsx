@@ -354,9 +354,12 @@ export function Window({
       style={{
         ...(pinnedForKeyboard
           ? {
-              left: MOBILE_SIDE_PADDING,
+              // a window still centred by CSS keeps its horizontal centring (only
+              // the vertical part of `translate` changes), otherwise it would
+              // swoop in sideways as `translate` animates to nothing
+              left: centeredByCss ? `calc(50% + ${centerOffset.x}px)` : MOBILE_SIDE_PADDING,
               top: keyboard.top + MOBILE_SIDE_PADDING,
-              translate: "none",
+              translate: centeredByCss ? "-50% 0" : "none",
               width: `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`,
               // never taller than the visible area, so the fields stay above the keyboard
               maxHeight: Math.max(160, keyboard.height - MOBILE_SIDE_PADDING * 2),
