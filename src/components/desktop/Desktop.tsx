@@ -8,7 +8,7 @@ import { PullIndicator, usePullToRefresh } from "./PullToRefresh";
 import { Window } from "./Window";
 import { NoteIcon, MailIcon, WorkFolderIcon, FunFolderIcon } from "./icons";
 import { AboutWindow } from "./windows/AboutWindow";
-import { FinderWindow } from "./windows/FinderWindow";
+import { FinderWindow, FINDER_EXPANDED_WIDTH } from "./windows/FinderWindow";
 import { site } from "@/data/site";
 import { ContactWindow } from "./windows/ContactWindow";
 import { ProjectWindow } from "./windows/ProjectWindow";
@@ -36,6 +36,8 @@ const APPS: Record<
     width: number;
     // rough opening height, only used to keep a random position on screen
     height: number;
+    // width the window grows to when a folder opens (Finder-style windows)
+    growsTo?: number;
     render: (ctx: AppContext) => React.ReactNode;
   }
 > = {
@@ -53,6 +55,7 @@ const APPS: Record<
     initial: { x: 90, y: 100 },
     width: 420,
     height: 415,
+    growsTo: FINDER_EXPANDED_WIDTH.withoutPlatform,
     render: ({ openProject }) => (
       <FinderWindow
         root="fun"
@@ -69,6 +72,7 @@ const APPS: Record<
     initial: { x: 60, y: 40 },
     width: 420,
     height: 415,
+    growsTo: FINDER_EXPANDED_WIDTH.withPlatform,
     render: ({ openProject }) => (
       <FinderWindow
         root="work"
@@ -100,26 +104,39 @@ const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
 
 const PROJECT_WINDOW = { width: 520, height: 260 };
 
-// Picks where a new window opens on desktop: random, but preferring spots
-// that don't cover the windows already open (a little overlap is fine).
-// On mobile windows are centered by CSS, so the fallback is used as-is.
-function pickWindowPosition(width: number, height: number, fallback: Offset): Offset {
+// The part of the screen new windows open in, as fractions of the viewport:
+// roughly the middle, leaving the edges and the footer clear.
+const OPEN_REGION = { left: 0.13, right: 0.915, top: 0.185, bottom: 0.86 };
+
+// Picks where a new window opens on desktop: random within OPEN_REGION, but
+// preferring spots that don't cover the windows already open (a little overlap
+// is fine). `growTo` is for windows that widen when a folder is opened: room
+// is kept for that width and the position leans left. On mobile windows are
+// centered by CSS, so the fallback is used as-is.
+function pickWindowPosition(
+  width: number,
+  height: number,
+  fallback: Offset,
+  growTo?: number
+): Offset {
   if (window.matchMedia("(max-width: 639px)").matches) return fallback;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const w = Math.min(vw * 0.92, width);
+  const w = Math.min(vw * 0.92, growTo ?? width);
   const h = Math.min(vh * 0.88, height);
-  const EDGE = 20;
-  const FOOTER = 60;
-  const maxX = Math.max(0, vw - w - EDGE);
-  const maxY = Math.max(0, vh - h - FOOTER);
+  const minX = vw * OPEN_REGION.left;
+  const minY = vh * OPEN_REGION.top;
+  const maxX = Math.max(minX, vw * OPEN_REGION.right - w);
+  const maxY = Math.max(minY, vh * OPEN_REGION.bottom - h);
   const taken = Array.from(document.querySelectorAll(".aqua-window")).map((el) =>
     el.getBoundingClientRect()
   );
 
   const candidates = Array.from({ length: 24 }, () => {
-    const x = EDGE + Math.random() * Math.max(0, maxX - EDGE);
-    const y = EDGE + Math.random() * Math.max(0, maxY - EDGE);
+    // squaring the random number crowds the pick towards the left edge
+    const along = growTo ? Math.random() ** 2 : Math.random();
+    const x = minX + along * (maxX - minX);
+    const y = minY + Math.random() * (maxY - minY);
     let overlap = 0;
     for (const t of taken) {
       const ix = Math.max(0, Math.min(x + w, t.right) - Math.max(x, t.left));
@@ -178,7 +195,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     const app = APPS[id as DesktopId];
     const initial = windows[id]?.open
       ? undefined
-      : pickWindowPosition(app.width, app.height, app.initial);
+      : pickWindowPosition(app.width, app.height, app.initial, app.growsTo);
     setWindows((w) => ({
       ...w,
       [id]: { open: true, z: nextZ(), origin, initial: initial ?? w[id]?.initial },

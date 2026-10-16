@@ -7,7 +7,7 @@ import { FolderIcon, NoteIcon } from "../icons";
 import { projectWindowId } from "../projects";
 
 // window width once a folder is open: first column + project (+ platform) column
-const EXPANDED_WIDTH = { withPlatform: 620, withoutPlatform: 520 };
+export const FINDER_EXPANDED_WIDTH = { withPlatform: 620, withoutPlatform: 520 };
 
 function Chevron() {
   return (
@@ -54,8 +54,8 @@ export function FinderWindow({
   useRequestedWidth(
     selected
       ? showPlatform
-        ? EXPANDED_WIDTH.withPlatform
-        : EXPANDED_WIDTH.withoutPlatform
+        ? FINDER_EXPANDED_WIDTH.withPlatform
+        : FINDER_EXPANDED_WIDTH.withoutPlatform
       : undefined
   );
 
