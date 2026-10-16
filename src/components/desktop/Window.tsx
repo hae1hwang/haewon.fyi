@@ -124,11 +124,16 @@ export function Window({
   // While a text field has focus on a phone the keyboard is up: the window pins to
   // the top of what's visible (instead of staying centred in the full screen,
   // which makes it jump as the keyboard comes and goes between fields).
-  // Holds the visible area while pinned, otherwise null.
+  // It un-pins when the keyboard goes away, which on a phone doesn't always
+  // blur the field, so the visible area is watched as well as focus.
+  const [fieldFocused, setFieldFocused] = useState(false);
+  // holds the visible area while pinned, otherwise null
   const [keyboard, setKeyboard] = useState<{ height: number; top: number } | null>(null);
-  const keyboardUp = keyboard !== null;
   const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pinnedForKeyboard = isMobile && !expandOnMobile && keyboardUp;
+  const fieldFocusedRef = useRef(false);
+  const baselineRef = useRef(0); // visible height before the keyboard came up
+  const keyboardSeenRef = useRef(false);
+  const pinnedForKeyboard = isMobile && !expandOnMobile && keyboard !== null;
 
   function readVisibleArea() {
     const vv = window.visualViewport;
@@ -136,25 +141,49 @@ export function Window({
   }
   function onFieldFocus(e: React.FocusEvent) {
     clearTimeout(blurTimer.current);
-    if (isMobile && !expandOnMobile && isTextField(e.target)) setKeyboard(readVisibleArea());
+    if (!(isMobile && !expandOnMobile && isTextField(e.target))) return;
+    const area = readVisibleArea();
+    if (!fieldFocusedRef.current) {
+      baselineRef.current = area.height;
+      keyboardSeenRef.current = false;
+    }
+    fieldFocusedRef.current = true;
+    setFieldFocused(true);
+    setKeyboard(area); // pin right away; the keyboard is still sliding up
   }
   function onFieldBlur() {
     // a short delay, so moving from one field to the next doesn't un-pin in between
     clearTimeout(blurTimer.current);
-    blurTimer.current = setTimeout(() => setKeyboard(null), 150);
+    blurTimer.current = setTimeout(() => {
+      fieldFocusedRef.current = false;
+      setFieldFocused(false);
+      setKeyboard(null);
+    }, 150);
   }
   useEffect(() => {
-    if (!keyboardUp) return;
+    if (!fieldFocused) return;
     const vv = window.visualViewport;
     if (!vv) return;
-    const update = () => setKeyboard({ height: vv.height, top: vv.offsetTop });
+    const update = () => {
+      if (vv.height < baselineRef.current - 100) {
+        // keyboard is up (also when it comes back up in a field that never lost focus)
+        keyboardSeenRef.current = true;
+        setKeyboard({ height: vv.height, top: vv.offsetTop });
+      } else if (keyboardSeenRef.current && vv.height >= baselineRef.current - 60) {
+        // keyboard dismissed while the field kept focus: back to the centre
+        keyboardSeenRef.current = false;
+        setKeyboard(null);
+      } else {
+        setKeyboard((k) => (k ? { height: vv.height, top: vv.offsetTop } : k));
+      }
+    };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
     return () => {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
     };
-  }, [keyboardUp]);
+  }, [fieldFocused]);
   useEffect(() => () => clearTimeout(blurTimer.current), []);
   const centeredByCss =
     (isMobile ? !expandOnMobile : centerOnOpen) && !detached;
@@ -391,7 +420,7 @@ export function Window({
               window Esc would actually close */}
           <span
             aria-hidden
-            className={`esc-hint text-[10px] leading-none tracking-wide text-black/40 ${
+            className={`esc-hint text-[11px] leading-none tracking-wide text-black/40 ${
               isActive ? "" : "opacity-0"
             }`}
           >

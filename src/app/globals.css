@@ -130,8 +130,8 @@ button {
 }
 
 .aqua-dot {
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   border-radius: 9999px;
   display: flex;
   align-items: center;
@@ -146,6 +146,21 @@ button {
 .aqua-dot-red {
   background: radial-gradient(circle at 35% 30%, #ff8f89, var(--aqua-red) 55%, var(--aqua-red-dark) 100%);
 }
+/* the close button's clickable area reaches well past the visible dot (the dot
+   alone is small to hit, especially with a thumb) */
+.aqua-dot-red {
+  position: relative;
+}
+.aqua-dot-red::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+@media (pointer: coarse) {
+  .aqua-dot-red::before {
+    inset: -12px;
+  }
+}
 .aqua-dot-yellow {
   background: radial-gradient(circle at 35% 30%, #ffe08a, var(--aqua-yellow) 55%, var(--aqua-yellow-dark) 100%);
 }
@@ -155,14 +170,14 @@ button {
 /* the title bar's left and right ends are the same width so the title is
    centred; the left one makes room for the "Esc" hint on mouse devices */
 .titlebar-side {
-  width: 13px;
+  width: 15px;
 }
 .esc-hint {
   display: none;
 }
 @media (hover: hover) and (pointer: fine) {
   .titlebar-side {
-    width: 40px;
+    width: 44px;
   }
   .esc-hint {
     display: inline;
@@ -171,7 +186,7 @@ button {
 
 .aqua-dot-glyph {
   opacity: 0;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
   color: #7a0000;
   font-weight: 700;
