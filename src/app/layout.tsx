@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { site } from "@/data/site";
 
-const title = `${site.name} — ${site.role}`;
+// the browser tab title, also reused for link-preview cards
+const title = `${site.name} Design`;
 
 export const metadata: Metadata = {
   // lets the share-image tags below use absolute https://haewon.fyi/... URLs,
