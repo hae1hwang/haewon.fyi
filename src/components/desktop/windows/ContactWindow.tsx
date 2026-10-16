@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useForm } from "@formspree/react";
 import { site } from "@/data/site";
@@ -136,14 +136,13 @@ export function ContactWindow() {
   // hidden again while a retry is in flight
   const sendFailed = !state.submitting && (state.errors?.getFormErrors().length ?? 0) > 0;
   // `n` counts copies; it keys the animated pieces so every click replays them
-  // `x`/`y` is where the label sits on screen (just under the icon)
   const [copy, setCopy] = useState<{
     status: "copied" | "failed" | null;
     n: number;
-    x: number;
-    y: number;
     leaving: boolean; // the label is playing its exit animation
-  }>({ status: null, n: 0, x: 0, y: 0, leaving: false });
+  }>({ status: null, n: 0, leaving: false });
+  const copyBtnRef = useRef<HTMLButtonElement>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
   const copyStatus = copy.status;
   const copyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -155,16 +154,27 @@ export function ContactWindow() {
     []
   );
 
-  async function copyEmail(e: React.MouseEvent<HTMLButtonElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
+  // Keeps the label just under the copy icon, wherever the icon is *now*: on a
+  // phone, tapping the icon dismisses the keyboard and the window slides back
+  // to the centre, so a position read at tap time would be stale.
+  useLayoutEffect(() => {
+    if (!copy.status) return;
+    const place = () => {
+      const btn = copyBtnRef.current;
+      const tip = tipRef.current;
+      if (!btn || !tip) return;
+      const r = btn.getBoundingClientRect();
+      tip.style.left = `${r.left + r.width / 2}px`;
+      tip.style.top = `${r.bottom + 6}px`;
+    };
+    place();
+    const id = setInterval(place, 16);
+    return () => clearInterval(id);
+  }, [copy.status, copy.n]);
+
+  async function copyEmail() {
     const ok = await copyText(site.email);
-    setCopy((c) => ({
-      status: ok ? "copied" : "failed",
-      n: c.n + 1,
-      x: rect.left + rect.width / 2,
-      y: rect.bottom + 6,
-      leaving: false,
-    }));
+    setCopy((c) => ({ status: ok ? "copied" : "failed", n: c.n + 1, leaving: false }));
     clearTimeout(copyTimer.current);
     clearTimeout(leaveTimer.current);
     // after two seconds the label plays its exit animation, then everything resets
@@ -186,7 +196,7 @@ export function ContactWindow() {
         createPortal(
           <span
             key={`tip-${copy.n}`}
-            style={{ left: copy.x, top: copy.y }}
+            ref={tipRef}
             className={`copy-tip ${copy.leaving ? "copy-tip-out" : ""} pointer-events-none fixed z-[70] -translate-x-1/2 whitespace-nowrap rounded-md bg-[#2b2b2b] px-2 py-1 text-[11px] leading-none text-white shadow-[0_2px_8px_rgba(0,0,0,0.25)]`}
           >
             {copyStatus === "copied" ? "Email copied to clipboard" : "Couldn't copy"}
@@ -295,6 +305,7 @@ export function ContactWindow() {
               </a>
               <button
                 type="button"
+                ref={copyBtnRef}
                 onClick={copyEmail}
                 aria-label="Copy email address"
                 title="Copy email address"
