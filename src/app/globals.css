@@ -152,6 +152,23 @@ button {
 .aqua-dot-green {
   background: radial-gradient(circle at 35% 30%, #7be08a, var(--aqua-green) 55%, var(--aqua-green-dark) 100%);
 }
+/* the title bar's left and right ends are the same width so the title is
+   centred; the left one makes room for the "Esc" hint on mouse devices */
+.titlebar-side {
+  width: 13px;
+}
+.esc-hint {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .titlebar-side {
+    width: 40px;
+  }
+  .esc-hint {
+    display: inline;
+  }
+}
+
 .aqua-dot-glyph {
   opacity: 0;
   font-size: 9px;

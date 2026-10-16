@@ -305,20 +305,32 @@ export function Window({
           isActive ? "aqua-titlebar" : "aqua-titlebar-inactive"
         }`}
       >
-        <div className="flex shrink-0 items-center">
+        <div className="titlebar-side flex shrink-0 items-center gap-1.5">
           <button
             data-titlebar-button
             aria-label="Close"
+            title="Close (Esc)"
             onClick={requestClose}
             className="aqua-dot aqua-dot-red"
           >
             <span className="aqua-dot-glyph">✕</span>
           </button>
+          {/* keyboard hint, only on devices with a mouse, and only on the
+              window Esc would actually close */}
+          <span
+            aria-hidden
+            className={`esc-hint text-[10px] leading-none tracking-wide text-black/40 ${
+              isActive ? "" : "opacity-0"
+            }`}
+          >
+            Esc
+          </span>
         </div>
         <span className="flex-1 truncate px-2 text-center text-[13px] font-medium text-black/80">
           {title}
         </span>
-        <div className="w-[13px] shrink-0" aria-hidden />
+        {/* mirrors the left cluster's width so the title stays centred */}
+        <div className="titlebar-side shrink-0" aria-hidden />
       </div>
 
       <WindowWidthContext.Provider value={requestWidth}>
