@@ -89,10 +89,23 @@ const APPS: Record<
     iconSize: 96,
     iconOffsetTop: 10,
     initial: { x: 120, y: 150 },
-    width: 420,
+    // wide enough that the "Or email · LinkedIn" line stays on one row beside the
+    // Send button (even while it says "Sending…")
+    width: 480,
     height: 320,
     render: () => <ContactWindow />,
   },
+};
+
+// When the four icons no longer fit in one row (under 616px: 4 x 140px + 3 x 8px
+// gaps + 16px of margin each side) they wrap into a 2 x 2 grid. Visually
+// regroup it as the two folders on top and about.txt + contact below; the row
+// on wider screens keeps the DOM order.
+const WRAPPED_ORDER: Record<DesktopId, string> = {
+  work: "max-[615px]:order-1",
+  fun: "max-[615px]:order-2",
+  about: "max-[615px]:order-3",
+  contact: "max-[615px]:order-4",
 };
 
 const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
@@ -117,7 +130,8 @@ const PROJECT_WINDOW = {
 };
 
 // The part of the screen new windows open in, as fractions of the viewport:
-// roughly the middle, leaving the edges and the footer clear.
+// roughly the middle, leaving the edges and the footer clear (and biased to
+// the top half, see pickWindowPosition).
 const OPEN_REGION = { left: 0.13, right: 0.915, top: 0.185, bottom: 0.86 };
 
 // Picks where a new window opens on desktop: random within OPEN_REGION, but
@@ -139,7 +153,9 @@ function pickWindowPosition(
   const minX = vw * OPEN_REGION.left;
   const minY = vh * OPEN_REGION.top;
   const maxX = Math.max(minX, vw * OPEN_REGION.right - w);
-  const maxY = Math.max(minY, vh * OPEN_REGION.bottom - h);
+  // windows open mostly in the top half: the window's centre never goes below
+  // the middle of the screen, so they don't land south of the desktop icons
+  const maxY = Math.max(minY, Math.min(vh * OPEN_REGION.bottom - h, vh * 0.5 - h / 2));
   const taken = Array.from(document.querySelectorAll(".aqua-window")).map((el) =>
     el.getBoundingClientRect()
   );
@@ -148,7 +164,8 @@ function pickWindowPosition(
     // squaring the random number crowds the pick towards the left edge
     const along = growTo ? Math.random() ** 2 : Math.random();
     const x = minX + along * (maxX - minX);
-    const y = minY + Math.random() * (maxY - minY);
+    // squaring the random number favours the upper part of that range
+    const y = minY + Math.random() ** 2 * (maxY - minY);
     let overlap = 0;
     for (const t of taken) {
       const ix = Math.max(0, Math.min(x + w, t.right) - Math.max(x, t.left));
@@ -406,7 +423,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             <div
               key={d.id}
               data-icon-id={d.id}
-              className="relative"
+              className={`relative ${WRAPPED_ORDER[d.id]}`}
               style={{
                 transform: `translate(${iconOffset[d.id]?.x ?? 0}px, ${iconOffset[d.id]?.y ?? 0}px)`,
                 zIndex: lastDragged === d.id ? 10 : undefined,

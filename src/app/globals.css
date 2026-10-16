@@ -223,11 +223,11 @@ button {
 @keyframes tip-pop {
   0% {
     opacity: 0;
-    transform: translateY(7px) scale(0.8);
+    transform: translateY(-7px) scale(0.8);
   }
   60% {
     opacity: 1;
-    transform: translateY(-2px) scale(1.05);
+    transform: translateY(2px) scale(1.05);
   }
   100% {
     opacity: 1;
@@ -250,12 +250,38 @@ button {
   pointer-events: none;
   animation: copy-ring 0.6s ease-out forwards;
 }
+.copy-check path + path {
+  animation-delay: 0.22s; /* the second stroke of the red x draws after the first */
+}
 .copy-tip {
   animation: tip-pop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+.copy-ring.copy-ring-bad {
+  border-color: #d6453a;
+}
+/* the way out mirrors the way in: a little swell, then shrinks back up
+   into the icon */
+@keyframes tip-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(2px) scale(1.06);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-7px) scale(0.8);
+  }
+}
+.copy-tip.copy-tip-out {
+  animation: tip-out 0.3s ease-in both;
+}
 @media (prefers-reduced-motion: reduce) {
   .copy-check,
-  .copy-tip {
+  .copy-tip,
+  .copy-tip.copy-tip-out {
     animation: none;
   }
   .copy-check path {
@@ -264,5 +290,44 @@ button {
   }
   .copy-ring {
     display: none;
+  }
+}
+
+/* form error messages: ease in, and a small shake on a field that needs attention */
+@keyframes err-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes field-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-5px);
+  }
+  45% {
+    transform: translateX(4px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+.field-error {
+  animation: err-in 0.22s ease-out both;
+}
+.shake {
+  animation: field-shake 0.34s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .field-error,
+  .shake {
+    animation: none;
   }
 }
