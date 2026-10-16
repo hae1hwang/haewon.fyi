@@ -102,13 +102,18 @@ const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
   { id: "contact", label: "contact" },
 ];
 
-// Project windows are sized like a document window, as if full case studies
-// were inside: wide, and tall for the screen. Content scrolls inside.
+// Project windows are sized like a PDF open in Preview: a tall, narrow page
+// (roughly letter proportions) so they work well on vertical screens. The
+// width follows the height, so the window stays portrait even on a short
+// screen. Content scrolls inside.
 const PROJECT_WINDOW = {
-  width: 820,
-  maxHeight: 640,
-  heightVh: 70,
-  css: "min(70vh, 640px)", // keep in sync with the two numbers above
+  maxHeight: 943,
+  heightVh: 87,
+  maxWidth: 698, // 0.74 x maxHeight
+  widthVh: 64.4, // 0.74 x heightVh
+  // the same sizes as CSS, for the window itself
+  heightCss: "min(87vh, 943px)",
+  widthCss: "min(92vw, 698px, 64.4vh)",
 };
 
 // The part of the screen new windows open in, as fractions of the viewport:
@@ -171,14 +176,14 @@ const CASCADE_STEP = { x: 30, y: 32 }; // y matches the title bar height
 function slotOffset(slot: number): Offset {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const w = Math.min(vw * 0.92, PROJECT_WINDOW.width);
+  const w = Math.min(vw * 0.92, PROJECT_WINDOW.maxWidth, (vh * PROJECT_WINDOW.widthVh) / 100);
   const h = Math.min((vh * PROJECT_WINDOW.heightVh) / 100, PROJECT_WINDOW.maxHeight);
   const stepsX = ((vw - w) / 2 - 12) / CASCADE_STEP.x;
   const downSteps = Math.min(stepsX, (vh / 2 - h / 2 - 48) / CASCADE_STEP.y); // footer below
   const upSteps = Math.min(stepsX, (vh / 2 - h / 2 - 12) / CASCADE_STEP.y);
-  // always allow at least two steps, even on small screens
-  const down = Math.max(2, Math.floor(downSteps));
-  const up = Math.max(2, Math.floor(upSteps));
+  // always allow at least one step each way, even on small screens
+  const down = Math.max(1, Math.floor(downSteps));
+  const up = Math.max(1, Math.floor(upSteps));
   // order of positions along the diagonal: centre, then down-right to the far
   // end, then wrap to the far up-left end and come back to just before centre
   const order = [
@@ -280,7 +285,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
       title: project ? `${project.title} · ${project.folder}` : "",
       icon: <NoteIcon />,
       initial: { x: 140, y: 90 },
-      width: PROJECT_WINDOW.width,
+      width: PROJECT_WINDOW.maxWidth,
       render: () => <ProjectWindow message={folder?.placeholder ?? "Coming soon"} />,
     };
   }
@@ -435,7 +440,8 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             expandOnMobile={!(id in APPS)}
             centerOnOpen={!(id in APPS)}
             centerOffset={slotOffset(w.slot ?? 0)}
-            windowHeight={id in APPS ? undefined : PROJECT_WINDOW.css}
+            windowHeight={id in APPS ? undefined : PROJECT_WINDOW.heightCss}
+            windowWidth={id in APPS ? undefined : PROJECT_WINDOW.widthCss}
             hidden={windowsHidden}
             origin={w.origin}
             getCloseOrigin={() => {

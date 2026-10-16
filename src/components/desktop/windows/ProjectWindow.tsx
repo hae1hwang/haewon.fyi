@@ -1,10 +1,8 @@
 export function ProjectWindow({ message }: { message: string }) {
   return (
-    // laid out like a document page: a comfortable reading column with generous margins
-    <div className="min-h-full bg-white px-8 py-10 text-[13px] leading-relaxed text-[#666] sm:px-14 sm:py-12">
-      <div className="mx-auto max-w-[680px]">
-        <p>{message}</p>
-      </div>
+    // plain white content, like about.txt; the window itself is the tall shape
+    <div className="min-h-full bg-white p-5 text-[13px] leading-relaxed text-[#666]">
+      <p>{message}</p>
     </div>
   );
 }

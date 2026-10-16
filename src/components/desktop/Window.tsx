@@ -73,6 +73,7 @@ export function Window({
   centerOnOpen = false,
   centerOffset = { x: 0, y: 0 },
   windowHeight,
+  windowWidth,
   origin,
   getCloseOrigin,
   onClose,
@@ -95,6 +96,8 @@ export function Window({
   centerOffset?: { x: number; y: number };
   // fixed height on desktop (a CSS length); otherwise the height follows the content
   windowHeight?: string;
+  // fixed width on desktop (a CSS length); otherwise `width` capped at 92vw
+  windowWidth?: string;
   origin?: { x: number; y: number };
   getCloseOrigin?: () => { x: number; y: number } | undefined;
   onClose: () => void;
@@ -296,7 +299,7 @@ export function Window({
               ...(!isMobile && windowHeight ? { height: windowHeight } : {}),
               width: isMobile
                 ? `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`
-                : `min(92vw, ${widthOverride ?? width}px)`,
+                : windowWidth ?? `min(92vw, ${widthOverride ?? width}px)`,
             }
           : {
               left: pos.x,
@@ -305,7 +308,7 @@ export function Window({
               ...(!isMobile && windowHeight ? { height: windowHeight } : {}),
               width: isMobile
                 ? `calc(100vw - ${MOBILE_SIDE_PADDING * 2}px)`
-                : `min(92vw, ${widthOverride ?? width}px)`,
+                : windowWidth ?? `min(92vw, ${widthOverride ?? width}px)`,
             }),
         zIndex,
         transition:
