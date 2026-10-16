@@ -3,6 +3,11 @@
 import { useForm, ValidationError } from "@formspree/react";
 import { site } from "@/data/site";
 
+// same look as the "Download resume" link in about.txt: grey like the text,
+// underlined, light blue highlight and darker text on hover
+const linkClass =
+  "-mx-0.5 rounded-[3px] px-0.5 underline [box-decoration-break:clone] hover:bg-[#d9ebff] hover:text-[#101010]";
+
 const fieldClass =
   "aqua-field w-full select-text px-2.5 py-1.5 text-[13px] text-black outline-none placeholder:text-black/35 focus:border-[#4d90fe] focus:ring-[3px] focus:ring-[#4d90fe]/40";
 
@@ -37,7 +42,7 @@ export function ContactWindow() {
           }}
           className="flex flex-col gap-3"
         >
-          <label className="flex flex-col gap-1 text-[12px] text-black/60">
+          <label className="flex flex-col gap-1 text-[13px] leading-relaxed text-[#666]">
             Your email
             <input
               type="email"
@@ -54,7 +59,7 @@ export function ContactWindow() {
             className="-mt-2 text-[12px] text-red-600"
           />
 
-          <label className="flex flex-col gap-1 text-[12px] text-black/60">
+          <label className="flex flex-col gap-1 text-[13px] leading-relaxed text-[#666]">
             Message
             <textarea
               name="message"
@@ -83,11 +88,11 @@ export function ContactWindow() {
           <ValidationError errors={state.errors} className="text-[12px] text-red-600" />
 
           <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 text-[11px] text-[#777]">
+            <p className="min-w-0 text-[13px] leading-relaxed text-[#666]">
               Or{" "}
               <a
                 href={`mailto:${site.email}`}
-                className="underline hover:text-[#101010]"
+                className={linkClass}
               >
                 {site.email}
               </a>
@@ -98,7 +103,7 @@ export function ContactWindow() {
                     href={linkedin.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline hover:text-[#101010]"
+                    className={linkClass}
                   >
                     LinkedIn
                   </a>
