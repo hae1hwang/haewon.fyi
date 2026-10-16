@@ -10,8 +10,10 @@ import { site } from "@/data/site";
 const linkClass =
   "-mx-0.5 rounded-[3px] px-0.5 underline [box-decoration-break:clone] hover:bg-[#d9ebff] hover:text-[#101010]";
 
+// 16px on phones: iOS zooms the page in whenever a text field smaller than that
+// gets focus, and doesn't always zoom back out afterwards
 const fieldClass =
-  "aqua-field w-full select-text px-2.5 py-1.5 text-[13px] text-black outline-none placeholder:text-black/35 focus:border-[#4d90fe] focus:ring-[3px] focus:ring-[#4d90fe]/40";
+  "aqua-field w-full select-text px-2.5 py-1.5 text-[16px] text-black outline-none sm:text-[13px] placeholder:text-black/35 focus:border-[#4d90fe] focus:ring-[3px] focus:ring-[#4d90fe]/40";
 
 // copies text to the clipboard; falls back to a hidden textarea where the
 // async Clipboard API isn't available (older browsers, non-secure pages)

@@ -118,7 +118,7 @@ export function FinderWindow({
             aria-label={`Search ${root}`}
             spellCheck={false}
             autoComplete="off"
-            className="w-full min-w-0 select-text bg-transparent py-[3px] pl-6 pr-6 text-[12px] text-black outline-none placeholder:text-black/40"
+            className="w-full min-w-0 select-text bg-transparent py-[3px] pl-6 pr-6 text-[16px] text-black outline-none sm:text-[12px] placeholder:text-black/40"
           />
           {query && (
             <button
