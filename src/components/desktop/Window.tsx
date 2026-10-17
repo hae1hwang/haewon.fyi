@@ -81,6 +81,9 @@ export function Window({
   centerOffset = { x: 0, y: 0 },
   windowHeight,
   windowWidth,
+  titlebarAction,
+  closeAllSignal = 0,
+  closeAllDelay = 0,
   origin,
   getCloseOrigin,
   onClose,
@@ -105,6 +108,11 @@ export function Window({
   windowHeight?: string;
   // fixed width on desktop (a CSS length); otherwise `width` capped at 92vw
   windowWidth?: string;
+  // bumps when "close all windows" is pressed; each window then closes itself (animated), staggered by the delay
+  // a control for the right end of the title bar (phones only, on the near-fullscreen windows)
+  titlebarAction?: ReactNode;
+  closeAllSignal?: number;
+  closeAllDelay?: number;
   origin?: { x: number; y: number };
   getCloseOrigin?: () => { x: number; y: number } | undefined;
   onClose: () => void;
@@ -134,6 +142,7 @@ export function Window({
   const baselineRef = useRef(0); // visible height before the keyboard came up
   const keyboardSeenRef = useRef(false);
   const pinnedForKeyboard = isMobile && !expandOnMobile && keyboard !== null;
+  const showTitlebarAction = isMobile && expandOnMobile && !!titlebarAction;
 
   function readVisibleArea() {
     const vv = window.visualViewport;
@@ -296,6 +305,18 @@ export function Window({
     anim.onfinish = onClose;
   }
 
+  // "close all windows": close with the normal shrink animation, one after another
+  const seenCloseAll = useRef(closeAllSignal); // ignore the value a window was opened with
+  useEffect(() => {
+    if (closeAllSignal === seenCloseAll.current) return;
+    const timer = setTimeout(() => {
+      seenCloseAll.current = closeAllSignal;
+      requestClose();
+    }, closeAllDelay);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeAllSignal]);
+
   useEffect(() => {
     if (!isActive || hidden) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -409,7 +430,9 @@ export function Window({
           isActive ? "aqua-titlebar" : "aqua-titlebar-inactive"
         }`}
       >
-        <div className="titlebar-side flex shrink-0 items-center gap-1.5">
+        <div
+          className={`${showTitlebarAction ? "titlebar-side-wide" : "titlebar-side"} flex shrink-0 items-center gap-1.5`}
+        >
           <button
             data-titlebar-button
             aria-label="Close"
@@ -434,7 +457,13 @@ export function Window({
           {title}
         </span>
         {/* mirrors the left cluster's width so the title stays centred */}
-        <div className="titlebar-side shrink-0" aria-hidden />
+        {showTitlebarAction ? (
+          <div className="titlebar-side-wide flex shrink-0 items-center justify-end">
+            {titlebarAction}
+          </div>
+        ) : (
+          <div className="titlebar-side shrink-0" aria-hidden />
+        )}
       </div>
 
       <WindowWidthContext.Provider value={requestWidth}>

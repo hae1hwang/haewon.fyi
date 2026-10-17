@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WorkFolder } from "@/data/site";
 import { useRequestedWidth } from "../Window";
 import { FolderIcon, NoteIcon } from "../icons";
@@ -26,9 +26,16 @@ function Chevron() {
   );
 }
 
-const rowClass = (active: boolean, dim = false) =>
+// `muted` is a selection in the column that doesn't have keyboard focus (grey, like Finder)
+const rowClass = (active: boolean, dim = false, muted = false) =>
   `flex w-full items-center gap-2 rounded-[5px] px-2 py-[3px] text-left text-[13px] font-normal ${
-    active ? "bg-accent text-white" : dim ? "text-black/40" : "text-black"
+    active
+      ? muted
+        ? "bg-black/10 text-black"
+        : "bg-accent text-white"
+      : dim
+        ? "text-black/40"
+        : "text-black"
   }`;
 
 // Finder-style column view shared by the work and fun folders
@@ -38,16 +45,22 @@ export function FinderWindow({
   firstColumnLabel,
   showPlatform,
   onOpenProject,
+  keyboardActive = false,
 }: {
   root: string;
   folders: WorkFolder[];
   firstColumnLabel: string;
   showPlatform: boolean;
   onOpenProject: (folder: string, title: string, origin: { x: number; y: number }) => void;
+  // whether arrow keys / Enter should drive this window right now
+  keyboardActive?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  // which column the keyboard is in (0 = folders, 1 = projects)
+  const [focusColumn, setFocusColumn] = useState<0 | 1>(0);
+  const rootRef = useRef<HTMLDivElement>(null);
   const selected = allFolders.find((f) => f.name === selectedName);
 
   // opening a folder grows the window to the right to make room for its column
@@ -73,8 +86,85 @@ export function FinderWindow({
       ? selected.items
       : selected.items.filter((item) => matches(item.title));
 
+  const openable = items.filter((item) => !item.comingSoon);
+
+  // Arrow keys move through the lists like a Finder column view, and Enter
+  // opens the highlighted project (nothing opens just by arrowing past it).
+  useEffect(() => {
+    if (!keyboardActive) return;
+    const clamp = (n: number, len: number) => Math.min(Math.max(n, 0), len - 1);
+
+    function openHighlighted() {
+      if (!selected || !selectedItem) return;
+      const row = rootRef.current?.querySelector(
+        `[data-project-id="${projectWindowId(selected.name, selectedItem)}"]`
+      );
+      const r = row?.getBoundingClientRect();
+      onOpenProject(selected.name, selectedItem, r
+        ? { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+        : { x: window.innerWidth / 2, y: window.innerHeight / 2 });
+    }
+    function stepIntoProjects() {
+      if (!selected || openable.length === 0) return;
+      setFocusColumn(1);
+      setSelectedItem(openable[0].title);
+    }
+
+    function onKey(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter"].includes(e.key)) return;
+      const target = e.target as HTMLElement;
+      // typing in a field, or a button that isn't one of this window's rows, keeps its own keys
+      if (target.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (target.closest("button, a") && !target.closest("[data-finder-row]")) return;
+      e.preventDefault();
+
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const dir = e.key === "ArrowDown" ? 1 : -1;
+        if (focusColumn === 0 || !selected) {
+          const names = folders.map((f) => f.name);
+          if (names.length === 0) return;
+          const i = selectedName ? names.indexOf(selectedName) : -1;
+          const next = i === -1 ? (dir === 1 ? 0 : names.length - 1) : clamp(i + dir, names.length);
+          setFocusColumn(0);
+          setSelectedName(names[next]);
+          setSelectedItem(null);
+        } else {
+          const titles = openable.map((item) => item.title);
+          if (titles.length === 0) return;
+          const i = selectedItem ? titles.indexOf(selectedItem) : -1;
+          const next = i === -1 ? (dir === 1 ? 0 : titles.length - 1) : clamp(i + dir, titles.length);
+          setSelectedItem(titles[next]);
+        }
+      } else if (e.key === "ArrowRight") {
+        if (!selected) {
+          if (folders[0]) setSelectedName(folders[0].name);
+          return;
+        }
+        if (focusColumn === 0) stepIntoProjects();
+      } else if (e.key === "ArrowLeft") {
+        if (focusColumn === 1) {
+          setFocusColumn(0);
+          setSelectedItem(null);
+        }
+      } else if (e.key === "Enter") {
+        if (focusColumn === 1) openHighlighted();
+        else stepIntoProjects();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  // keep the highlighted row in view when the lists scroll
+  useEffect(() => {
+    rootRef.current
+      ?.querySelector(`[data-col="${focusColumn}"][data-selected="true"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [selectedName, selectedItem, focusColumn]);
+
   return (
-    <div className="flex h-full flex-col">
+    <div ref={rootRef} className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
         <span className="aqua-field min-w-0 flex-1 truncate px-2.5 py-1">
           {/* on mobile, once a folder is open, the root collapses to "…" so the
@@ -156,6 +246,7 @@ export function FinderWindow({
             if (e.target !== e.currentTarget) return;
             setSelectedName(null);
             setSelectedItem(null);
+            setFocusColumn(0);
           }}
         >
           {folders.length === 0 && (
@@ -166,11 +257,15 @@ export function FinderWindow({
           {folders.map((folder) => (
             <button
               key={folder.name}
+              data-finder-row
+              data-col="0"
+              data-selected={folder.name === selectedName}
               onClick={() => {
                 setSelectedName(folder.name);
                 setSelectedItem(null);
+                setFocusColumn(0);
               }}
-              className={rowClass(folder.name === selectedName)}
+              className={rowClass(folder.name === selectedName, false, focusColumn === 1)}
             >
               <FolderIcon className="h-4 w-4 shrink-0" />
               <span className="truncate">{folder.name}</span>
@@ -198,9 +293,13 @@ export function FinderWindow({
             ) : (
               <button
                 key={item.title}
+                data-finder-row
+                data-col="1"
+                data-selected={item.title === selectedItem}
                 data-project-id={projectWindowId(selected?.name ?? "", item.title)}
                 onClick={(e) => {
                   setSelectedItem(item.title);
+                  setFocusColumn(1);
                   const r = e.currentTarget.getBoundingClientRect();
                   onOpenProject(selected?.name ?? "", item.title, {
                     x: r.left + r.width / 2,

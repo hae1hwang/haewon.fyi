@@ -21,8 +21,12 @@ type Offset = { x: number; y: number };
 type DesktopId = "about" | "fun" | "work" | "contact";
 type WindowId = string;
 
+const FINDER_IDS: WindowId[] = ["work", "fun"];
+
 type AppContext = {
   openProject: (folder: string, title: string, origin: Offset) => void;
+  // whether this window should respond to arrow keys / Enter right now
+  keyboardActive: boolean;
 };
 
 const APPS: Record<
@@ -38,6 +42,8 @@ const APPS: Record<
     height: number;
     // width the window grows to when a folder opens (Finder-style windows)
     growsTo?: number;
+    // "left": opens on the left of the screen, near vertical centre, instead of at a random spot
+    placement?: "left";
     render: (ctx: AppContext) => React.ReactNode;
   }
 > = {
@@ -56,13 +62,14 @@ const APPS: Record<
     width: 420,
     height: 415,
     growsTo: FINDER_EXPANDED_WIDTH.withoutPlatform,
-    render: ({ openProject }) => (
+    render: ({ openProject, keyboardActive }) => (
       <FinderWindow
         root="fun"
         folders={site.funFolders}
         firstColumnLabel="Name"
         showPlatform={false}
         onOpenProject={openProject}
+        keyboardActive={keyboardActive}
       />
     ),
   },
@@ -73,13 +80,15 @@ const APPS: Record<
     width: 420,
     height: 415,
     growsTo: FINDER_EXPANDED_WIDTH.withPlatform,
-    render: ({ openProject }) => (
+    placement: "left",
+    render: ({ openProject, keyboardActive }) => (
       <FinderWindow
         root="work"
         folders={site.workFolders}
         firstColumnLabel="Team"
         showPlatform
         onOpenProject={openProject}
+        keyboardActive={keyboardActive}
       />
     ),
   },
@@ -134,6 +143,25 @@ const PROJECT_WINDOW = {
 // the top half, see pickWindowPosition).
 const OPEN_REGION = { left: 0.13, right: 0.915, top: 0.185, bottom: 0.86 };
 
+// The work folder opens on the left, roughly centred vertically, so project
+// windows (which open to the right of it) can sit beside it instead of on top.
+const LEFT_PLACEMENT_X = 0.08; // fraction of the screen width
+const LEFT_PLACEMENT_CENTRE_Y = 0.47; // fraction of the screen height
+
+function leftPlacementX(vw: number, w: number) {
+  return Math.max(20, Math.min(vw * LEFT_PLACEMENT_X, vw - 20 - w));
+}
+
+// Where project windows are centred horizontally: the right-hand side of the
+// screen, and always clear of the work window even when it has widened.
+function projectBaseCentreX(vw: number, w: number) {
+  const workW = Math.min(vw * 0.92, FINDER_EXPANDED_WIDTH.withPlatform);
+  const workRight = leftPlacementX(vw, workW) + workW;
+  const wanted = Math.max(vw * 0.63, workRight + 24 + w / 2);
+  // keep one cascade step of room on the right, so the second window isn't cut off
+  return Math.min(Math.max(wanted, w / 2 + 12), vw - w / 2 - 12 - CASCADE_STEP.x);
+}
+
 // Picks where a new window opens on desktop: random within OPEN_REGION, but
 // preferring spots that don't cover the windows already open (a little overlap
 // is fine). `growTo` is for windows that widen when a folder is opened: room
@@ -143,13 +171,23 @@ function pickWindowPosition(
   width: number,
   height: number,
   fallback: Offset,
-  growTo?: number
+  growTo?: number,
+  placement?: "left"
 ): Offset {
   if (window.matchMedia("(max-width: 639px)").matches) return fallback;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const w = Math.min(vw * 0.92, growTo ?? width);
   const h = Math.min(vh * 0.88, height);
+  if (placement === "left") {
+    // left side, near the vertical middle, with a little variation so it isn't robotic
+    const jitter = (Math.random() - 0.5) * vh * 0.06;
+    const y = vh * LEFT_PLACEMENT_CENTRE_Y - h / 2 + jitter;
+    return {
+      x: Math.round(leftPlacementX(vw, w)),
+      y: Math.round(Math.max(20, Math.min(y, vh - h - 60))),
+    };
+  }
   const minX = vw * OPEN_REGION.left;
   const minY = vh * OPEN_REGION.top;
   const maxX = Math.max(minX, vw * OPEN_REGION.right - w);
@@ -181,28 +219,33 @@ function pickWindowPosition(
 }
 
 // Project windows cascade diagonally down and to the right, like files opening
-// one after another on macOS. The first is dead centre; each next one steps
-// down-right so the previous window's title bar stays visible. Every step has
-// its own x and y, so no two windows line up on either axis.
+// one after another on macOS. The first sits at the base position (vertically
+// centred, on the right-hand side of the screen, clear of the work window);
+// each next one steps down-right so the previous window's title bar stays
+// visible. Every step has its own x and y, so no two windows line up on either
+// axis.
 //
 // The diagonal only has so much room, so once the steps run out the cascade
 // wraps: it restarts from the top-left end of the same diagonal and works
-// its way back down towards the centre.
+// its way back down towards the base.
 const CASCADE_STEP = { x: 30, y: 32 }; // y matches the title bar height
 
+// offset of a project window from the exact centre of the screen
 function slotOffset(slot: number): Offset {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const w = Math.min(vw * 0.92, PROJECT_WINDOW.maxWidth, (vh * PROJECT_WINDOW.widthVh) / 100);
   const h = Math.min((vh * PROJECT_WINDOW.heightVh) / 100, PROJECT_WINDOW.maxHeight);
-  const stepsX = ((vw - w) / 2 - 12) / CASCADE_STEP.x;
-  const downSteps = Math.min(stepsX, (vh / 2 - h / 2 - 48) / CASCADE_STEP.y); // footer below
-  const upSteps = Math.min(stepsX, (vh / 2 - h / 2 - 12) / CASCADE_STEP.y);
+  const baseX = projectBaseCentreX(vw, w) - vw / 2; // shift to the right of centre
+  const stepsRight = (vw - (projectBaseCentreX(vw, w) + w / 2) - 12) / CASCADE_STEP.x;
+  const stepsLeft = (projectBaseCentreX(vw, w) - w / 2 - 12) / CASCADE_STEP.x;
+  const downSteps = Math.min(stepsRight, (vh / 2 - h / 2 - 48) / CASCADE_STEP.y); // footer below
+  const upSteps = Math.min(stepsLeft, (vh / 2 - h / 2 - 12) / CASCADE_STEP.y);
   // always allow at least one step each way, even on small screens
   const down = Math.max(1, Math.floor(downSteps));
   const up = Math.max(1, Math.floor(upSteps));
-  // order of positions along the diagonal: centre, then down-right to the far
-  // end, then wrap to the far up-left end and come back to just before centre
+  // order of positions along the diagonal: base, then down-right to the far
+  // end, then wrap to the far up-left end and come back to just before the base
   const order = [
     0,
     ...Array.from({ length: down }, (_, i) => i + 1),
@@ -212,7 +255,10 @@ function slotOffset(slot: number): Offset {
   // if even the wrapped cascade fills up, each extra lap is shifted a little so
   // a window never lands exactly on top of another
   const lap = Math.floor(slot / order.length);
-  return { x: step * CASCADE_STEP.x + lap * 10, y: step * CASCADE_STEP.y + lap * 8 };
+  return {
+    x: baseX + step * CASCADE_STEP.x + lap * 10,
+    y: step * CASCADE_STEP.y + lap * 8,
+  };
 }
 
 type WinState = {
@@ -239,7 +285,13 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const draggingRef = useRef(false);
   // "show desktop": clicking the background slides open windows to the edges
   const [windowsHidden, setWindowsHidden] = useState(false);
+  // bumped by the "close all" button; every open window closes itself in response
+  const [closeAllSignal, setCloseAllSignal] = useState(0);
   const pullToRefresh = usePullToRefresh();
+  // the folder window (work / fun) that was last in front; it keeps getting the
+  // arrow keys while one of its project windows is on top, so you can step to
+  // the next project without clicking back into it
+  const [lastFinderId, setLastFinderId] = useState<WindowId | null>(null);
 
   useEffect(() => {
     let width = window.innerWidth;
@@ -263,10 +315,11 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   // origin is the icon's center, so the window can grow out of it
   function openWindow(id: WindowId, origin: Offset) {
     setWindowsHidden(false);
+    if (FINDER_IDS.includes(id)) setLastFinderId(id);
     const app = APPS[id as DesktopId];
     const initial = windows[id]?.open
       ? undefined
-      : pickWindowPosition(app.width, app.height, app.initial, app.growsTo);
+      : pickWindowPosition(app.width, app.height, app.initial, app.growsTo, app.placement);
     setWindows((w) => ({
       ...w,
       [id]: { open: true, z: nextZ(), origin, initial: initial ?? w[id]?.initial },
@@ -293,6 +346,35 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     }));
   }
 
+  // "Next project" (phones): every openable project in the same list (work or fun),
+  // in the order they appear
+  function projectSequence(folderName: string) {
+    const list = site.workFolders.some((f) => f.name === folderName)
+      ? site.workFolders
+      : site.funFolders;
+    return list.flatMap((f) =>
+      f.items.filter((i) => !i.comingSoon).map((i) => ({ folder: f.name, title: i.title }))
+    );
+  }
+
+  // swaps this window for the next project, in place (no new window)
+  function goToNextProject(id: WindowId) {
+    const cur = parseProjectWindowId(id);
+    if (!cur) return;
+    const seq = projectSequence(cur.folder);
+    const i = seq.findIndex((p) => p.folder === cur.folder && p.title === cur.title);
+    if (seq.length < 2 || i < 0) return;
+    const next = seq[(i + 1) % seq.length];
+    const nextId = projectWindowId(next.folder, next.title);
+    setWindows((w) => ({
+      ...w,
+      [id]: { ...w[id], open: false },
+      [nextId]: w[nextId]?.open
+        ? { ...w[nextId], z: nextZ() }
+        : { open: true, z: nextZ(), slot: w[id]?.slot, initial: w[id]?.initial },
+    }));
+  }
+
   function getApp(id: WindowId) {
     if (id in APPS) return APPS[id as DesktopId];
     const project = parseProjectWindowId(id);
@@ -309,6 +391,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
 
   function focusWindow(id: WindowId) {
     setWindowsHidden(false);
+    if (FINDER_IDS.includes(id)) setLastFinderId(id);
     setWindows((w) => ({ ...w, [id]: { ...w[id], z: nextZ() } }));
   }
 
@@ -387,7 +470,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   }
 
   const activeId = useMemo(() => {
-    let top: WindowId | null = null;
+    let top = null as WindowId | null;
     let topZ = -1;
     (Object.keys(windows) as WindowId[]).forEach((id) => {
       const w = windows[id];
@@ -398,6 +481,13 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     });
     return top;
   }, [windows]);
+
+  const keyboardFinderId: WindowId | null =
+    activeId && FINDER_IDS.includes(activeId)
+      ? activeId
+      : activeId?.startsWith("project:") && lastFinderId && windows[lastFinderId]?.open
+        ? lastFinderId
+        : null;
 
   const openIds = (Object.keys(windows) as WindowId[]).filter(
     (id) => windows[id].open
@@ -460,6 +550,24 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             windowHeight={id in APPS ? undefined : PROJECT_WINDOW.heightCss}
             windowWidth={id in APPS ? undefined : PROJECT_WINDOW.widthCss}
             hidden={windowsHidden}
+            titlebarAction={
+              id in APPS || projectSequence(parseProjectWindowId(id)?.folder ?? "").length < 2 ? undefined : (
+                <button
+                  type="button"
+                  data-titlebar-button
+                  onClick={() => goToNextProject(id)}
+                  aria-label="Next project"
+                  className="next-project-btn"
+                >
+                  Next
+                  <svg viewBox="0 0 6 10" className="h-[9px] w-[6px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="m1 1 4 4-4 4" />
+                  </svg>
+                </button>
+              )
+            }
+            closeAllSignal={closeAllSignal}
+            closeAllDelay={openIds.indexOf(id) * 45}
             origin={w.origin}
             getCloseOrigin={() => {
               const r = document
@@ -470,13 +578,28 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             onClose={() => closeWindow(id)}
             onFocus={() => focusWindow(id)}
           >
-            {app.render({ openProject })}
+            {app.render({ openProject, keyboardActive: id === keyboardFinderId })}
           </Window>
         );
       })}
 
+      {/* with two or more windows open, one button closes them all */}
+      <button
+        type="button"
+        onClick={() => {
+          setWindowsHidden(false);
+          setCloseAllSignal((n) => n + 1);
+        }}
+        aria-label="Close all windows"
+        aria-hidden={openIds.length < 2}
+        tabIndex={openIds.length < 2 ? -1 : 0}
+        className={`close-all-fab ${openIds.length < 2 ? "is-hidden" : ""}`}
+      >
+        <span className="aqua-dot aqua-dot-red" aria-hidden />
+        Close all
+      </button>
       <PullIndicator pull={pullToRefresh.pull} refreshing={pullToRefresh.refreshing} />
-      <Footer lastUpdated={lastUpdated} />
+      <Footer lastUpdated={lastUpdated} faded={openIds.length >= 2} />
     </main>
   );
 }

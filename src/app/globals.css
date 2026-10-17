@@ -172,6 +172,10 @@ button {
 .titlebar-side {
   width: 15px;
 }
+/* wider ends on windows that carry a "Next" button in the title bar */
+.titlebar-side-wide {
+  width: 74px;
+}
 .esc-hint {
   display: none;
 }
@@ -345,4 +349,82 @@ button {
   .shake {
     animation: none;
   }
+}
+
+/* "close all windows": a small frosted pill at the bottom centre (in the strip the
+   footer uses, which fades out while it's there), shown while two or more windows
+   are open. Quiet until hovered. */
+.close-all-fab {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  left: 50%;
+  z-index: 9000;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 13px 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.13);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+  color: #5a5a5a;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
+    visibility 0.22s,
+    background-color 0.15s,
+    color 0.15s;
+}
+.close-all-fab .aqua-dot {
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+}
+.close-all-fab:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #101010;
+}
+.close-all-fab:active {
+  transform: translateX(-50%) scale(0.97);
+}
+.close-all-fab.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, 8px) scale(0.96);
+}
+@media (prefers-reduced-motion: reduce) {
+  .close-all-fab {
+    transition: none;
+  }
+}
+
+/* "Next project" button in the title bar of phone project windows */
+.next-project-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px 0 11px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: #4c4c4c;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.next-project-btn:active {
+  background: #fff;
+  color: #101010;
 }
