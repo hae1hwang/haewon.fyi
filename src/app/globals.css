@@ -402,6 +402,21 @@ button {
   pointer-events: none;
   transform: translate(-50%, 8px) scale(0.96);
 }
+/* a bit larger and further off the bottom edge where there's room (not phones,
+   where it lives in the 40px strip under the expanded window) */
+@media (min-width: 640px) {
+  .close-all-fab {
+    bottom: 20px;
+    height: 32px;
+    gap: 8px;
+    padding: 0 16px 0 12px;
+    font-size: 13px;
+  }
+  .close-all-fab .aqua-dot {
+    width: 10px;
+    height: 10px;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .close-all-fab {
     transition: none;

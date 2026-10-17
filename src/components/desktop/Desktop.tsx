@@ -236,9 +236,13 @@ function slotOffset(slot: number): Offset {
   const vh = window.innerHeight;
   const w = Math.min(vw * 0.92, PROJECT_WINDOW.maxWidth, (vh * PROJECT_WINDOW.widthVh) / 100);
   const h = Math.min((vh * PROJECT_WINDOW.heightVh) / 100, PROJECT_WINDOW.maxHeight);
-  const baseX = projectBaseCentreX(vw, w) - vw / 2; // shift to the right of centre
-  const stepsRight = (vw - (projectBaseCentreX(vw, w) + w / 2) - 12) / CASCADE_STEP.x;
-  const stepsLeft = (projectBaseCentreX(vw, w) - w / 2 - 12) / CASCADE_STEP.x;
+  // on phones windows fill the screen, so the cascade starts dead centre; on
+  // larger screens it starts to the right of centre, clear of the work window
+  const isPhone = window.matchMedia("(max-width: 639px)").matches;
+  const baseCentre = isPhone ? vw / 2 : projectBaseCentreX(vw, w);
+  const baseX = baseCentre - vw / 2;
+  const stepsRight = (vw - (baseCentre + w / 2) - 12) / CASCADE_STEP.x;
+  const stepsLeft = (baseCentre - w / 2 - 12) / CASCADE_STEP.x;
   const downSteps = Math.min(stepsRight, (vh / 2 - h / 2 - 48) / CASCADE_STEP.y); // footer below
   const upSteps = Math.min(stepsLeft, (vh / 2 - h / 2 - 12) / CASCADE_STEP.y);
   // always allow at least one step each way, even on small screens
@@ -428,20 +432,18 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     const startX = e.clientX;
     const startY = e.clientY;
     let moved = false;
-    // icons are fixed in place on mobile; only windows can be dragged there
-    const canDrag = !window.matchMedia("(max-width: 639px)").matches;
+    const isTouch = e.pointerType === "touch";
+    // a finger wobbles more than a mouse, so a touch needs to travel further
+    // before it counts as a drag rather than a tap
+    const dragThreshold = isTouch ? 8 : 4;
+    // the icon owns this touch, so it mustn't also start a pull-to-refresh
+    if (isTouch) e.stopPropagation();
     draggingRef.current = true;
 
     function onMove(ev: PointerEvent) {
       const dx = ev.clientX - startX;
       const dy = ev.clientY - startY;
-      if (!canDrag) {
-        // icons stay put on mobile, but a touch that travels is a swipe or
-        // pull, not a tap, so it must not open the window
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) moved = true;
-        return;
-      }
-      if (!moved && Math.abs(dx) <= 4 && Math.abs(dy) <= 4) return;
+      if (!moved && Math.abs(dx) <= dragThreshold && Math.abs(dy) <= dragThreshold) return;
       if (!moved) {
         moved = true;
         setLastDragged(id);

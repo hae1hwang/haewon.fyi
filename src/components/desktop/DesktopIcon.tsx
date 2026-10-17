@@ -25,7 +25,7 @@ export function DesktopIcon({
       onClick={(e) => {
         if (e.detail === 0) onKeyboardOpen(e.currentTarget.getBoundingClientRect());
       }}
-      className="group relative h-[140px] w-[140px] shrink-0 outline-none sm:touch-none"
+      className="group relative h-[140px] w-[140px] shrink-0 touch-none outline-none"
     >
       <span
         className="absolute left-1/2 -translate-x-1/2 [&>img]:pointer-events-none [&>img]:absolute [&>img]:-left-[16%] [&>img]:-top-[16%] [&>img]:h-[132%] [&>img]:w-[132%] [&>img]:max-w-none [&>img]:[-webkit-user-drag:none] [&>svg]:h-full [&>svg]:w-full"
