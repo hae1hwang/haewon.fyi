@@ -82,6 +82,7 @@ export function Window({
   windowHeight,
   windowWidth,
   titlebarAction,
+  startDetached = false,
   closeAllSignal = 0,
   closeAllDelay = 0,
   origin,
@@ -109,8 +110,11 @@ export function Window({
   // fixed width on desktop (a CSS length); otherwise `width` capped at 92vw
   windowWidth?: string;
   // bumps when "close all windows" is pressed; each window then closes itself (animated), staggered by the delay
-  // a control for the right end of the title bar (phones only, on the near-fullscreen windows)
+  // a control for the right end of the title bar
   titlebarAction?: ReactNode;
+  // desktop: open at exactly `initial` (a spot on screen) instead of centred by CSS, e.g. when
+  // this window replaces one that had been moved
+  startDetached?: boolean;
   closeAllSignal?: number;
   closeAllDelay?: number;
   origin?: { x: number; y: number };
@@ -128,7 +132,7 @@ export function Window({
   const [dragging, setDragging] = useState(false);
   // on mobile a window starts centered by CSS; once grabbed it switches to
   // explicit left/top coordinates like on desktop
-  const [detached, setDetached] = useState(false);
+  const [detached, setDetached] = useState(startDetached);
   // While a text field has focus on a phone the keyboard is up: the window pins to
   // the top of what's visible (instead of staying centred in the full screen,
   // which makes it jump as the keyboard comes and goes between fields).
@@ -142,7 +146,7 @@ export function Window({
   const baselineRef = useRef(0); // visible height before the keyboard came up
   const keyboardSeenRef = useRef(false);
   const pinnedForKeyboard = isMobile && !expandOnMobile && keyboard !== null;
-  const showTitlebarAction = isMobile && expandOnMobile && !!titlebarAction;
+  const showTitlebarAction = !!titlebarAction;
 
   function readVisibleArea() {
     const vv = window.visualViewport;
@@ -201,7 +205,7 @@ export function Window({
   const closingRef = useRef(false);
   // once the user has dragged, a partly off-screen position is deliberate and
   // must survive resizes and width changes
-  const draggedRef = useRef(false);
+  const draggedRef = useRef(startDetached);
 
   // where the window's center rests on screen, ignoring any running transform
   function restingCenter(el: HTMLElement) {
@@ -320,7 +324,9 @@ export function Window({
   useEffect(() => {
     if (!isActive || hidden) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") requestClose();
+      // a held key repeats; only the first press closes this window (holding
+      // Esc is "close all", handled in Desktop)
+      if (e.key === "Escape" && !e.repeat) requestClose();
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

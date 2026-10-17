@@ -22,6 +22,7 @@ type DesktopId = "about" | "fun" | "work" | "contact";
 type WindowId = string;
 
 const FINDER_IDS: WindowId[] = ["work", "fun"];
+const HOLD_ESC_MS = 550; // how long Esc is held to close all windows
 
 type AppContext = {
   openProject: (folder: string, title: string, origin: Offset) => void;
@@ -303,6 +304,8 @@ type WinState = {
   initial?: Offset;
   // project windows: which stagger position around the centre this one holds
   slot?: number;
+  // opened in place of another window, at exactly `initial`
+  detached?: boolean;
 };
 
 export function Desktop({ lastUpdated }: { lastUpdated: string }) {
@@ -339,6 +342,35 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     }
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // holding Esc closes every window (a tap still just closes the front one)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    function stop() {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape" || e.repeat || timer) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        // the tap that started the hold has already closed the front window
+        setCloseAllSignal((n) => n + 1);
+      }, HOLD_ESC_MS);
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.key === "Escape") stop();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", stop);
+    return () => {
+      stop();
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", stop);
+    };
   }, []);
 
   function nextZ() {
@@ -393,7 +425,9 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   }
 
   // swaps this window for the next project, in place (no new window)
-  function goToNextProject(id: WindowId) {
+  // `from` is where the current window sits on screen: on desktop the next
+  // project opens exactly there, even if the window had been dragged
+  function goToNextProject(id: WindowId, from?: DOMRect) {
     const cur = parseProjectWindowId(id);
     if (!cur) return;
     const seq = projectSequence(cur.folder);
@@ -401,12 +435,19 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     if (seq.length < 2 || i < 0) return;
     const next = seq[(i + 1) % seq.length];
     const nextId = projectWindowId(next.folder, next.title);
+    const isPhone = window.matchMedia("(max-width: 639px)").matches;
     setWindows((w) => ({
       ...w,
       [id]: { ...w[id], open: false },
       [nextId]: w[nextId]?.open
         ? { ...w[nextId], z: nextZ() }
-        : { open: true, z: nextZ(), slot: w[id]?.slot, initial: w[id]?.initial },
+        : {
+            open: true,
+            z: nextZ(),
+            slot: w[id]?.slot,
+            initial: from && !isPhone ? { x: from.left, y: from.top } : w[id]?.initial,
+            detached: !!from && !isPhone,
+          },
     }));
   }
 
@@ -583,12 +624,15 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             windowHeight={id in APPS ? undefined : PROJECT_HEIGHT_CSS}
             windowWidth={id in APPS ? undefined : PROJECT_WIDTH_CSS}
             hidden={windowsHidden}
+            startDetached={w.detached}
             titlebarAction={
               id in APPS || projectSequence(parseProjectWindowId(id)?.folder ?? "").length < 2 ? undefined : (
                 <button
                   type="button"
                   data-titlebar-button
-                  onClick={() => goToNextProject(id)}
+                  onClick={(e) =>
+                    goToNextProject(id, e.currentTarget.closest(".aqua-window")?.getBoundingClientRect())
+                  }
                   aria-label="Next project"
                   className="next-project-btn"
                 >
