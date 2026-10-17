@@ -128,15 +128,37 @@ const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
 // (roughly letter proportions) so they work well on vertical screens. The
 // width follows the height, so the window stays portrait even on a short
 // screen. Content scrolls inside.
+//
+// On desktop the window also keeps clear of the "close all" pill at the bottom
+// and leaves a buffer at the top: it lives in a band between PROJECT_BAND.top
+// and PROJECT_BAND.bottom, and is kept shorter than that band by
+// PROJECT_BAND.cascadeRoom so the cascade has a step of room up and down.
 const PROJECT_WINDOW = {
   maxHeight: 943,
   heightVh: 87,
   maxWidth: 698, // 0.74 x maxHeight
-  widthVh: 64.4, // 0.74 x heightVh
-  // the same sizes as CSS, for the window itself
-  heightCss: "min(87vh, 943px)",
-  widthCss: "min(92vw, 698px, 64.4vh)",
+  widthRatio: 0.74,
 };
+const PROJECT_BAND = { top: 24, bottom: 72, cascadeRoom: 64 };
+const PROJECT_MIN_HEIGHT = 300;
+// the same sizes as CSS, for the window itself
+const PROJECT_HEIGHT_CSS = `max(${PROJECT_MIN_HEIGHT}px, min(${PROJECT_WINDOW.heightVh}vh, ${PROJECT_WINDOW.maxHeight}px, 100vh - ${
+  PROJECT_BAND.top + PROJECT_BAND.bottom + PROJECT_BAND.cascadeRoom
+}px))`;
+const PROJECT_WIDTH_CSS = `min(92vw, ${PROJECT_WINDOW.maxWidth}px, calc(${PROJECT_WINDOW.widthRatio} * ${PROJECT_HEIGHT_CSS}))`;
+
+function projectWindowSize(vw: number, vh: number) {
+  const h = Math.max(
+    PROJECT_MIN_HEIGHT,
+    Math.min(
+      (vh * PROJECT_WINDOW.heightVh) / 100,
+      PROJECT_WINDOW.maxHeight,
+      vh - (PROJECT_BAND.top + PROJECT_BAND.bottom + PROJECT_BAND.cascadeRoom)
+    )
+  );
+  const w = Math.min(vw * 0.92, PROJECT_WINDOW.maxWidth, h * PROJECT_WINDOW.widthRatio);
+  return { w, h };
+}
 
 // The part of the screen new windows open in, as fractions of the viewport:
 // roughly the middle, leaving the edges and the footer clear (and biased to
@@ -234,17 +256,26 @@ const CASCADE_STEP = { x: 30, y: 32 }; // y matches the title bar height
 function slotOffset(slot: number): Offset {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const w = Math.min(vw * 0.92, PROJECT_WINDOW.maxWidth, (vh * PROJECT_WINDOW.widthVh) / 100);
-  const h = Math.min((vh * PROJECT_WINDOW.heightVh) / 100, PROJECT_WINDOW.maxHeight);
+  const isPhone = window.matchMedia("(max-width: 639px)").matches;
+  const size = projectWindowSize(vw, vh);
+  const w = size.w;
+  // phones don't have the pill band, so their cascade keeps the full-height sizing
+  const h = isPhone
+    ? Math.min((vh * PROJECT_WINDOW.heightVh) / 100, PROJECT_WINDOW.maxHeight)
+    : size.h;
   // on phones windows fill the screen, so the cascade starts dead centre; on
   // larger screens it starts to the right of centre, clear of the work window
-  const isPhone = window.matchMedia("(max-width: 639px)").matches;
   const baseCentre = isPhone ? vw / 2 : projectBaseCentreX(vw, w);
   const baseX = baseCentre - vw / 2;
   const stepsRight = (vw - (baseCentre + w / 2) - 12) / CASCADE_STEP.x;
   const stepsLeft = (baseCentre - w / 2 - 12) / CASCADE_STEP.x;
-  const downSteps = Math.min(stepsRight, (vh / 2 - h / 2 - 48) / CASCADE_STEP.y); // footer below
-  const upSteps = Math.min(stepsLeft, (vh / 2 - h / 2 - 12) / CASCADE_STEP.y);
+  // on desktop the window sits in the middle of the band above the "close all"
+  // pill, and the cascade stays inside that band; phones use the whole screen
+  const baseY = isPhone ? 0 : (PROJECT_BAND.top - PROJECT_BAND.bottom) / 2;
+  const roomBelow = isPhone ? vh / 2 - h / 2 - 48 : vh / 2 - baseY - h / 2 - PROJECT_BAND.bottom; // footer / pill
+  const roomAbove = isPhone ? vh / 2 - h / 2 - 12 : vh / 2 + baseY - h / 2 - PROJECT_BAND.top;
+  const downSteps = Math.min(stepsRight, (roomBelow + 0.5) / CASCADE_STEP.y);
+  const upSteps = Math.min(stepsLeft, (roomAbove + 0.5) / CASCADE_STEP.y);
   // always allow at least one step each way, even on small screens
   const down = Math.max(1, Math.floor(downSteps));
   const up = Math.max(1, Math.floor(upSteps));
@@ -261,7 +292,7 @@ function slotOffset(slot: number): Offset {
   const lap = Math.floor(slot / order.length);
   return {
     x: baseX + step * CASCADE_STEP.x + lap * 10,
-    y: step * CASCADE_STEP.y + lap * 8,
+    y: baseY + step * CASCADE_STEP.y + lap * 8,
   };
 }
 
@@ -549,8 +580,8 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             expandOnMobile={!(id in APPS)}
             centerOnOpen={!(id in APPS)}
             centerOffset={slotOffset(w.slot ?? 0)}
-            windowHeight={id in APPS ? undefined : PROJECT_WINDOW.heightCss}
-            windowWidth={id in APPS ? undefined : PROJECT_WINDOW.widthCss}
+            windowHeight={id in APPS ? undefined : PROJECT_HEIGHT_CSS}
+            windowWidth={id in APPS ? undefined : PROJECT_WIDTH_CSS}
             hidden={windowsHidden}
             titlebarAction={
               id in APPS || projectSequence(parseProjectWindowId(id)?.folder ?? "").length < 2 ? undefined : (
