@@ -1,6 +1,8 @@
 // a phrase in the about timeline that opens a project from the work folder
 export type AboutLink = { text: string; folder: string; project: string };
-export type WorkItem = { title: string; platform?: string; comingSoon?: boolean };
+// `message` is what a single project window says until its case study is ready
+// (it takes priority over the folder's `placeholder`)
+export type WorkItem = { title: string; platform?: string; comingSoon?: boolean; message?: string };
 // `placeholder` is what the folder's project windows say until there are case studies
 export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string };
 
@@ -126,7 +128,7 @@ export const site = {
       name: "YouTube TV",
       placeholder: "Stay tuned...",
       items: [
-        { title: "Multiview", platform: "TV, Mobile/Tablet" },
+        { title: "Multiview", platform: "TV, Mobile/Tablet", message: "Going live Monday, Oct 26" },
         { title: "Watch", platform: "TV" },
         { title: "Library", platform: "TV" },
         { title: "Identity", platform: "TV" },
@@ -135,12 +137,16 @@ export const site = {
     {
       name: "YouTube Living Room",
       placeholder: "Stay tuned...",
-      items: [{ title: "Identity", platform: "TV, Mobile" }],
+      items: [{ title: "Identity", platform: "TV, Mobile", message: "Going live Monday, Oct 26" }],
     },
     {
       name: "Google Photos",
       placeholder: "Coming soon",
       items: [{ title: "Creation & editing", platform: "Mobile, Web" }],
+    },
+    {
+      name: "Vibe coding",
+      items: [{ title: "Portfolio site", platform: "Web, Mobile web", message: "Going live Sunday October 25" }],
     },
   ] as WorkFolder[],
 };

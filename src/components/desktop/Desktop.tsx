@@ -461,7 +461,10 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
       icon: <NoteIcon />,
       initial: { x: 140, y: 90 },
       width: PROJECT_WINDOW.maxWidth,
-      render: () => <ProjectWindow message={folder?.placeholder ?? "Coming soon"} />,
+      render: () => {
+        const item = folder?.items.find((i) => i.title === project?.title);
+        return <ProjectWindow message={item?.message ?? folder?.placeholder ?? "Coming soon"} />;
+      },
     };
   }
 
