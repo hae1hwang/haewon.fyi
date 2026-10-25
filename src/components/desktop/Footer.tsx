@@ -16,7 +16,7 @@ export function Footer({
         faded ? "opacity-0" : "opacity-50"
       }`}>
       <span className="text-center">
-        {site.name} · {lastUpdated} · Coded with Claude ♡
+        {site.name} · {lastUpdated} · Made in NYC ♡
       </span>
     </div>
   );

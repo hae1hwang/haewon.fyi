@@ -4,7 +4,8 @@ export type AboutLink = { text: string; folder: string; project: string };
 // (it takes priority over the folder's `placeholder`)
 export type WorkItem = { title: string; platform?: string; comingSoon?: boolean; message?: string };
 // `placeholder` is what the folder's project windows say until there are case studies
-export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string };
+// `locked` folders ask for a password before any of their projects open
+export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string; locked?: boolean };
 
 export const site = {
   name: "Haewon Hwang",
@@ -126,6 +127,7 @@ export const site = {
   workFolders: [
     {
       name: "YouTube TV",
+      locked: true,
       placeholder: "Stay tuned...",
       items: [
         { title: "Multiview", platform: "TV, Mobile/Tablet", message: "Going live Monday, Oct 26" },
@@ -136,11 +138,13 @@ export const site = {
     },
     {
       name: "YouTube Living Room",
+      locked: true,
       placeholder: "Stay tuned...",
       items: [{ title: "Identity", platform: "TV, Mobile", message: "Going live Monday, Oct 26" }],
     },
     {
       name: "Google Photos",
+      locked: true,
       placeholder: "Coming soon",
       items: [{ title: "Creation & editing", platform: "Mobile, Web" }],
     },

@@ -316,6 +316,15 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     contact: { open: false, z: 0 },
   });
   const [zCounter, setZCounter] = useState(1);
+  // protected projects: one correct password unlocks them all until the tab is closed
+  // (nothing on screen depends on this when the page first loads, so reading it up front is safe)
+  const [unlocked, setUnlocked] = useState(() => {
+    try {
+      return typeof window !== "undefined" && sessionStorage.getItem("unlocked") === "1";
+    } catch {
+      return false;
+    }
+  });
   // drag offsets from each icon's natural place in the centered row, so the
   // row keeps reflowing on resize and dragged icons simply sit on top of it
   const [iconOffset, setIconOffset] = useState<Partial<Record<DesktopId, Offset>>>({});
@@ -463,7 +472,19 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
       width: PROJECT_WINDOW.maxWidth,
       render: () => {
         const item = folder?.items.find((i) => i.title === project?.title);
-        return <ProjectWindow message={item?.message ?? folder?.placeholder ?? "Coming soon"} />;
+        return (
+          <ProjectWindow
+            message={item?.message ?? folder?.placeholder ?? "Coming soon"}
+            title={project?.title}
+            locked={!!folder?.locked && !unlocked}
+            onUnlock={() => {
+              setUnlocked(true);
+              try {
+                sessionStorage.setItem("unlocked", "1");
+              } catch {}
+            }}
+          />
+        );
       },
     };
   }

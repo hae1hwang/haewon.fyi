@@ -55,3 +55,13 @@ export function MailIcon({ className, shadowed }: IconProps) {
     />
   );
 }
+
+// a small padlock for projects that need a password (drawn in the surrounding text colour)
+export function LockIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 12 14" className={className} fill="none" aria-hidden>
+      <rect x="1.5" y="6" width="9" height="7" rx="1.6" fill="currentColor" />
+      <path d="M3.6 6V4.2a2.4 2.4 0 0 1 4.8 0V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}

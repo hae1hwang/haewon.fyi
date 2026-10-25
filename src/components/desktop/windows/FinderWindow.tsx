@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { WorkFolder } from "@/data/site";
 import { useRequestedWidth } from "../Window";
-import { FolderIcon, NoteIcon } from "../icons";
+import { FolderIcon, LockIcon, NoteIcon } from "../icons";
 import { projectWindowId } from "../projects";
 
 // window width once a folder is open: first column + project (+ platform) column
@@ -309,7 +309,11 @@ export function FinderWindow({
                 className={rowClass(item.title === selectedItem)}
               >
                 <NoteIcon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 truncate">{item.title}</span>
+                <span className="truncate">{item.title}</span>
+                {selected?.locked && (
+                  <LockIcon className="ml-1.5 h-[11px] w-[10px] shrink-0 opacity-50" />
+                )}
+                <span className="flex-1" />
                 {showPlatform && (
                   <span className="hidden w-[120px] shrink-0 truncate opacity-60 sm:block">
                     {item.platform}
