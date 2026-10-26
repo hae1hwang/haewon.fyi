@@ -17,6 +17,9 @@ import { parseProjectWindowId, projectWindowId } from "./projects";
 
 type Offset = { x: number; y: number };
 
+// how long a password keeps protected projects open
+const UNLOCK_MS = 3 * 60 * 60 * 1000;
+
 // the icons on the desktop; project windows are opened from the work folder
 // and only get an id when opened
 type DesktopId = "about" | "fun" | "work" | "contact";
@@ -317,15 +320,25 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     contact: { open: false, z: 0 },
   });
   const [zCounter, setZCounter] = useState(1);
-  // protected projects: one correct password unlocks them all until the tab is closed
-  // (nothing on screen depends on this when the page first loads, so reading it up front is safe)
-  const [unlocked, setUnlocked] = useState(() => {
-    try {
-      return typeof window !== "undefined" && sessionStorage.getItem("unlocked") === "1";
-    } catch {
-      return false;
-    }
-  });
+  // protected projects: one correct password unlocks them all, but only until the page
+  // is left (closed, reloaded or navigated away from) or UNLOCK_MS has passed. It lives in
+  // memory only, so nothing is remembered between visits.
+  const [unlockedAt, setUnlockedAt] = useState<number | null>(null);
+  const unlocked = unlockedAt !== null;
+  useEffect(() => {
+    if (unlockedAt === null) return;
+    const lock = () => setUnlockedAt(null);
+    const timer = window.setTimeout(lock, Math.max(0, unlockedAt + UNLOCK_MS - Date.now()));
+    // timers pause while a laptop sleeps, so also check the clock when the tab comes back
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - unlockedAt >= UNLOCK_MS) lock();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [unlockedAt]);
   // drag offsets from each icon's natural place in the centered row, so the
   // row keeps reflowing on resize and dragged icons simply sit on top of it
   const [iconOffset, setIconOffset] = useState<Partial<Record<DesktopId, Offset>>>({});
@@ -487,10 +500,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             title={project?.title}
             locked={!!folder?.locked && !unlocked}
             onUnlock={() => {
-              setUnlocked(true);
-              try {
-                sessionStorage.setItem("unlocked", "1");
-              } catch {}
+              setUnlockedAt(Date.now());
             }}
           />
         );
