@@ -9,8 +9,15 @@ const linkClass =
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// a project that's marked "coming soon" can't be opened, so its phrase stays plain text
+const isOpenable = (link: AboutLink) =>
+  !site.workFolders
+    .find((f) => f.name === link.folder)
+    ?.items.find((i) => i.title === link.project)?.comingSoon;
+
 // underlines each linked phrase; clicking it opens that project's window
-function withLinks(text: string, links: AboutLink[] = [], onOpenProject: OpenProject) {
+function withLinks(text: string, allLinks: AboutLink[] = [], onOpenProject: OpenProject) {
+  const links = allLinks.filter(isOpenable);
   if (links.length === 0) return text;
   const pattern = new RegExp(`\\b(${links.map((l) => escapeRegExp(l.text)).join("|")})\\b`);
   return text.split(pattern).map((part, i) => {

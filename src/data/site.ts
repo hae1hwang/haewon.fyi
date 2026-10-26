@@ -131,9 +131,9 @@ export const site = {
       placeholder: "Stay tuned...",
       items: [
         { title: "Multiview", platform: "TV, Mobile/Tablet", message: "Going live Monday, Oct 26" },
-        { title: "Watch", platform: "TV" },
-        { title: "Library", platform: "TV" },
-        { title: "Identity", platform: "TV" },
+        { title: "Watch", platform: "TV", comingSoon: true },
+        { title: "Library", platform: "TV", comingSoon: true },
+        { title: "Identity", platform: "TV", comingSoon: true },
       ],
     },
     {
@@ -144,9 +144,8 @@ export const site = {
     },
     {
       name: "Google Photos",
-      locked: true,
       placeholder: "Coming soon",
-      items: [{ title: "Creation & editing", platform: "Mobile, Web" }],
+      items: [{ title: "Creation & editing", platform: "Mobile, Web", comingSoon: true }],
     },
     {
       name: "Vibe coding",
