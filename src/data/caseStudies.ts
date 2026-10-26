@@ -9,6 +9,7 @@ export type Figure = {
   width: number;
   height: number;
   alt: string;
+  // kept for reference; captions are not shown under images any more
   caption?: string;
 };
 
@@ -26,16 +27,37 @@ export type Block =
   // a term and its description; `text` can be a list, and each entry becomes its own paragraph
   | { type: "terms"; items: { term: string; text: string | string[] }[] }
   | { type: "stats"; items: { value: string; label: string }[] }
+  // pictures laid out like scattered snippets, positioned and sized in the units of a
+  // `width` x `height` board; hovering the board opens an enlarged copy of the whole thing
+  | {
+      type: "scatter";
+      width: number;
+      height: number;
+      items: { src: string; alt: string; x: number; y: number; w: number; h: number; radius: number }[];
+    }
+  // a row of links to other sites, divided by bars (they open in a new tab)
+  | { type: "links"; items: { text: string; href: string }[] }
+  // a few short items side by side (stacked on a phone): a title, some text and an optional note
+  // set just under the text
+  | { type: "columns"; items: { title: string; text: string; note?: string }[] }
   // `narrow` figures don't stretch to the full column (portrait photos)
-  | { type: "figure"; figure: Figure; narrow?: boolean }
+  // `bare` drops the thin frame around the image (for transparent graphics)
+  // `zoom` makes the image enlarge on hover
+  | { type: "figure"; figure: Figure; narrow?: boolean; bare?: boolean; zoom?: boolean }
   // a laptop (web) with a phone (mobile) in front of it, each showing an image or animated GIF.
   // Hovering it on a mouse device opens an enlarged copy next to the window.
   | { type: "devices"; laptop: Figure; phone?: Figure }
+  // a TV showing an image or animated GIF; hover to enlarge, like the devices above
+  | { type: "tv"; screen: Figure; overlay?: TvOverlay }
   // a two-column row: these blocks on the left, one image on the right (the image can be
   // hovered to enlarge it next to the window)
   | { type: "split"; left: Block[]; right: Figure }
   // side by side; widths follow each image's proportions so their heights match
   | { type: "figures"; figures: Figure[] };
+
+// an animation laid over a TV's screen (a remote, say), positioned and sized in percent of the
+// screen; it may hang past the screen's edge
+export type TvOverlay = { src: string; alt: string; left: number; top: number; width: number };
 
 export type CaseStudy = {
   title: string;
@@ -55,7 +77,7 @@ const portfolio: CaseStudy = {
     { label: "Stack", value: "Next.js, React, TypeScript, Tailwind CSS" },
   ],
   blocks: [
-    { type: "heading", text: "Finding the concept" },
+    { type: "heading", text: "🔎 Finding the concept" },
     
     { type: "subheading", text: "v1: putting out feelers", short: "v1" },
     {
@@ -222,7 +244,7 @@ const portfolio: CaseStudy = {
       text: "This version is the one I kept building and the one you’re looking at. The earlier versions still exist as separate copies, which is the point of forking: I could try a direction properly, compare it with the others, and carry the best ideas across.",
     },
 
-    { type: "heading", text: "The process: decisions made along the way" },
+    { type: "heading", text: "✍️ The process: decisions made along the way" },
     {
       type: "p",
       text: "The build was (and is) a long run of short rounds: try it on a laptop and on my phone, notice what felt off, say so, and adjust. Nearly every detail below came out of one of those rounds rather than a spec.",
@@ -351,7 +373,7 @@ const portfolio: CaseStudy = {
     //},
 
     
-{ type: "heading", text: "Thoughts & takeaways", noSubLinks: true },
+{ type: "heading", text: "💬 Thoughts & takeaways", noSubLinks: true },
     {
       type: "p",
       text: "For my first go with Claude code end to end, I think I did a pretty decent job! I got used to the workflow of prompting, testing, and iterating. However, as powerful as Claude is, it's still just a tool, and every tool needs its wielder. I felt like I had to handhold Claude with most decisions, even small ones that felt obvious to me, but because Claude only really implements within the parameters of the command it's given, I needed to provide a lot of very specific detail to make sure it can bring my vision to life.",
@@ -393,7 +415,7 @@ const portfolio: CaseStudy = {
       type: "p",
       text: "Another thing I noted is my own approach to interacting with Claude. It's interesting… I’m actually really polite to Claude. I say things like ‘*let’s* do this ‘ or ‘*we* can make this bigger’ instead of simply commanding it. I’m not sure why I do this but it only feels natural to do so. I also ask things like ‘how about… ‘ or ‘is it possible to…’ and end some prompts with a rhetorical ‘does that make sense?’ when I'm not super confident in my ask. I know it's unnecessary, but it feels like I'm working with a peer who's just super talented at implementing my ideas.",
     },
-   { type: "heading", text: "Behind the scenes" },
+   { type: "heading", text: "👾 Behind the scenes" },
     {
       type: "terms",
       items: [

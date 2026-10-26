@@ -1,11 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { LockIcon } from "../icons";
+import { ExternalLinkIcon, LockIcon } from "../icons";
 import { site } from "@/data/site";
-import { checkPassword } from "@/data/access";
+import { getProtectedStudy, unlock } from "@/lib/vault";
 import { createPortal } from "react-dom";
-import type { Block, CaseStudy, Figure } from "@/data/caseStudies";
+import type { Block, CaseStudy, Figure, TvOverlay } from "@/data/caseStudies";
 
 // A project window reads like a document: plain white page, one column, simple
 // type. Images are the only thing with a frame. Projects without a case study
@@ -13,12 +13,15 @@ import type { Block, CaseStudy, Figure } from "@/data/caseStudies";
 export function ProjectWindow({
   message,
   caseStudy,
+  protectedProject,
   locked = false,
   onUnlock,
   title,
 }: {
   message: string;
   caseStudy?: CaseStudy;
+  // a project whose case study is encrypted: it's fetched and opened once the page is unlocked
+  protectedProject?: { folder: string; title: string };
   // the project's name, used on the password screen
   title?: string;
   // true while the project still needs a password
@@ -26,6 +29,7 @@ export function ProjectWindow({
   onUnlock?: () => void;
 }) {
   if (locked) return <LockScreen title={title} onUnlock={() => onUnlock?.()} />;
+  if (protectedProject) return <ProtectedStudy project={protectedProject} message={message} />;
   if (!caseStudy) {
     return (
       <div className="min-h-full bg-white p-5 text-[13px] leading-relaxed text-[#666]">
@@ -35,6 +39,28 @@ export function ProjectWindow({
   }
 
   return <CaseStudyView caseStudy={caseStudy} />;
+}
+
+// An encrypted case study: decrypted in the browser (images and all), so there's a moment of loading
+function ProtectedStudy({ project, message }: { project: { folder: string; title: string }; message: string }) {
+  const name = `${project.folder}/${project.title}`;
+  const [result, setResult] = useState<{ name: string; study?: CaseStudy } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getProtectedStudy(project.folder, project.title)
+      .then((study) => !cancelled && setResult({ name, study }))
+      .catch(() => !cancelled && setResult({ name }));
+    return () => {
+      cancelled = true;
+    };
+  }, [name, project.folder, project.title]);
+  const current = result?.name === name ? result : null;
+  if (current?.study) return <CaseStudyView caseStudy={current.study} />;
+  return (
+    <div className="min-h-full bg-white p-5 text-[13px] leading-relaxed text-[#666]">
+      <p>{current ? message : "Opening…"}</p>
+    </div>
+  );
 }
 
 // The case study document. Its main headings are listed as "Chapters" in the facts table,
@@ -135,23 +161,48 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
   );
 }
 
+// **bold** marks in the copy are shown as a light mustard highlight rather than heavier type
+const highlightClass =
+  "-mx-0.5 rounded-[3px] bg-[#faf3d4] px-0.5 font-normal text-inherit [box-decoration-break:clone]";
+
 // Light text styling inside case study copy: **bold**, *italic* (or _italic_) and
-// ***bold italic***.
+// ***bold italic***, plus [[phrase|/path/to/image.webp|credit]] for a phrase that shows a picture on
+// hover (the credit is optional and is printed over the picture's bottom left corner), and
+// [text](https://…) for a link that opens in a new tab.
 function inline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g);
+  const parts = text.split(/(\[\[[^\]|]+\|[^\]]+\]\]|\[[^[\]]+\]\(https?:\/\/[^)\s]+\)|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g);
   return parts.map((part, i) => {
+    const link = part.match(/^\[([^[\]]+)\]\((https?:\/\/[^)\s]+)\)$/);
+    if (link) {
+      return (
+        <a
+          key={i}
+          href={link[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="-mx-0.5 rounded-[3px] px-0.5 underline decoration-[#b9b9b9] underline-offset-2 hover:bg-[#d9ebff] hover:decoration-[#333]"
+        >
+          {link[1]}
+          <ExternalLinkIcon />
+        </a>
+      );
+    }
+    if (part.startsWith("[[") && part.endsWith("]]")) {
+      const [phrase, src, credit] = part.slice(2, -2).split("|");
+      return <HoverPhrase key={i} text={phrase} src={src} credit={credit} />;
+    }
     if (part.startsWith("***") && part.endsWith("***") && part.length > 6) {
       return (
-        <strong key={i} className="font-semibold text-[#222]">
+        <mark key={i} className={highlightClass}>
           <em>{part.slice(3, -3)}</em>
-        </strong>
+        </mark>
       );
     }
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
-        <strong key={i} className="font-semibold text-[#222]">
+        <mark key={i} className={highlightClass}>
           {part.slice(2, -2)}
-        </strong>
+        </mark>
       );
     }
     if (part.length > 2 && ((part.startsWith("*") && part.endsWith("*")) || (part.startsWith("_") && part.endsWith("_")))) {
@@ -159,6 +210,149 @@ function inline(text: string): React.ReactNode {
     }
     return part;
   });
+}
+
+// The pictures of a scatter, laid out in percent of the board so they scale with it
+function ScatterItems({ board }: { board: Extract<Block, { type: "scatter" }> }) {
+  return (
+    <div className="relative w-full" style={{ aspectRatio: `${board.width} / ${board.height}` }}>
+      {board.items.map((it) => (
+        // eslint-disable-next-line @next/next/no-img-element -- static export, pre-sized images
+        <img
+          key={it.src}
+          src={it.src}
+          alt={it.alt}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          className="absolute block h-auto shadow-[0_1px_7px_rgba(0,0,0,0.2)]"
+          style={{
+            left: `${(it.x / board.width) * 100}%`,
+            top: `${(it.y / board.height) * 100}%`,
+            width: `${(it.w / board.width) * 100}%`,
+            borderRadius: `${(it.radius / it.w) * 100}% / ${(it.radius / it.h) * 100}%`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// A scattering of pictures (e.g. social posts). On a mouse device, hovering any of it opens an
+// enlarged copy of the whole board next to the window (or over it when there's no room beside it);
+// touch devices just see the small one.
+function Scatter({ board }: { board: Extract<Block, { type: "scatter" }> }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [zoomable, setZoomable] = useState(true);
+
+  function show() {
+    const el = ref.current;
+    if (!el || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const win = (el.closest(".aqua-window") ?? el).getBoundingClientRect();
+    const mine = el.getBoundingClientRect();
+    const aspect = board.height / board.width;
+    // the enlarged copy sits on a white card with 12px of padding all round
+    const pad = 24;
+    const placed = placePreview({
+      win,
+      mine,
+      aspect,
+      cap: Math.min(PREVIEW_MAX_WIDTH, (window.innerHeight - PREVIEW_EDGE * 2 - pad) / aspect + pad),
+      minSide: 240,
+      bigEnough: (w) => w >= mine.width * 1.25,
+    });
+    setZoomable(!!placed);
+    setPreview(placed);
+  }
+
+  return (
+    <div
+      ref={ref}
+      onMouseEnter={show}
+      onMouseLeave={() => setPreview(null)}
+      className={zoomable ? "cursor-zoom-in" : ""}
+    >
+      <ScatterItems board={board} />
+      {preview &&
+        createPortal(
+          <div
+            aria-hidden
+            className="hover-preview pointer-events-none fixed z-[9500]"
+            style={{ left: preview.left, top: preview.top, width: preview.width }}
+          >
+            <div className="rounded-[12px] bg-white p-3">
+              <ScatterItems board={board} />
+            </div>
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
+
+// A phrase in the body text that shows a picture when hovered, in the same style as the other
+// enlarged previews. It looks like a link but isn't clickable; touch devices just see the text.
+function HoverPhrase({ text, src, credit }: { text: string; src: string; credit?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const near = useNearScreen(ref);
+  // the picture's height over its width, known once it has loaded
+  const [ratio, setRatio] = useState<number | null>(null);
+  const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
+  useEffect(() => {
+    if (!near) return;
+    const img = new Image();
+    img.onload = () => setRatio(img.naturalHeight / img.naturalWidth);
+    img.src = src;
+  }, [near, src]);
+
+  function show() {
+    const el = ref.current;
+    if (!el || ratio === null || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const win = (el.closest(".aqua-window") ?? el).getBoundingClientRect();
+    // the picture sits on a white card with 12px of padding all round
+    const pad = 24;
+    setPreview(
+      placePreview({
+        win,
+        mine: el.getBoundingClientRect(),
+        aspect: ratio,
+        cap: Math.min(PREVIEW_MAX_WIDTH, (window.innerHeight - PREVIEW_EDGE * 2 - pad) / ratio + pad),
+        minSide: 240,
+        bigEnough: (w) => w >= 280,
+      })
+    );
+  }
+
+  return (
+    <span
+      ref={ref}
+      onMouseEnter={show}
+      onMouseLeave={() => setPreview(null)}
+      className="-mx-0.5 cursor-zoom-in rounded-[3px] px-0.5 underline decoration-[#b9b9b9] underline-offset-2 hover:bg-[#d9ebff] hover:decoration-[#333]"
+    >
+      {text}
+      {preview &&
+        createPortal(
+          <div
+            aria-hidden
+            className="hover-preview pointer-events-none fixed z-[9500]"
+            style={{ left: preview.left, top: preview.top, width: preview.width }}
+          >
+            <div className="relative rounded-[12px] bg-white p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element -- static export */}
+              <img src={src} alt="" draggable={false} className="block h-auto w-full rounded-[4px]" />
+              {credit && (
+                <span className="absolute bottom-[20px] left-[20px] rounded-[4px] bg-black/55 px-1.5 py-1 text-[11px] font-medium leading-none text-white">
+                  {credit}
+                </span>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+    </span>
+  );
 }
 
 // Text with line breaks: "\n" starts a new line, "\n~" starts one after a small paragraph gap (more
@@ -239,6 +433,49 @@ function BlockView({
           ))}
         </dl>
       );
+    case "scatter":
+      return (
+        <div className="mt-5">
+          <Scatter board={block} />
+        </div>
+      );
+    case "links":
+      return (
+        <div className="mt-2 text-[12px] leading-snug text-[#6f6f6f]">
+          {block.items.map((l, k) => (
+            <Fragment key={l.href}>
+              {k > 0 && <span className="mx-1.5 text-[#c4c4c4]">|</span>}
+              <a
+                href={l.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="-mx-0.5 rounded-[3px] px-0.5 underline decoration-[#b9b9b9] underline-offset-2 hover:bg-[#d9ebff] hover:decoration-[#333]"
+              >
+                {l.text}
+                <ExternalLinkIcon />
+              </a>
+            </Fragment>
+          ))}
+        </div>
+      );
+    case "columns":
+      return (
+        <div className="mt-3 grid gap-x-6 gap-y-5 sm:grid-cols-3">
+          {block.items.map((c) => (
+            <div key={c.title} className="flex flex-col">
+              <div className="font-semibold text-[#222]">{c.title}</div>
+              <div>
+                <Lines text={c.text} />
+              </div>
+              {c.note && (
+                <div className="mt-2.5 text-[12.5px] leading-snug text-[#8c8c8c] [&_strong]:text-[#222]">
+                  <Lines text={c.note} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
     case "stats":
       return (
         <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3">
@@ -255,7 +492,7 @@ function BlockView({
     case "figure":
       return (
         <div className={`mt-4 ${block.narrow ? "max-w-[280px]" : ""}`}>
-          <FigureView figure={block.figure} />
+          {block.zoom ? <ZoomFigure figure={block.figure} gain={1.25} /> : <FigureView figure={block.figure} bare={block.bare} />}
         </div>
       );
     case "split":
@@ -264,6 +501,12 @@ function BlockView({
       return (
         <div className="mt-5">
           <Devices laptop={block.laptop} phone={block.phone} />
+        </div>
+      );
+    case "tv":
+      return (
+        <div className="mt-5">
+          <TvMockup screen={block.screen} overlay={block.overlay} />
         </div>
       );
     case "figures":
@@ -281,7 +524,7 @@ function BlockView({
   }
 }
 
-function FigureView({ figure }: { figure: Figure }) {
+function FigureView({ figure, bare }: { figure: Figure; bare?: boolean }) {
   return (
     <figure>
       {/* eslint-disable-next-line @next/next/no-img-element -- static export, pre-sized images */}
@@ -293,13 +536,8 @@ function FigureView({ figure }: { figure: Figure }) {
         loading="lazy"
         decoding="async"
         draggable={false}
-        className="block h-auto w-full rounded-[4px] border border-[#e3e3e3]"
+        className={`block h-auto w-full ${bare ? "" : "rounded-[4px] border border-[#e3e3e3]"}`}
       />
-      {figure.caption && (
-        <figcaption className="mt-1.5 text-[11.5px] leading-snug text-[#8c8c8c]">
-          {figure.caption}
-        </figcaption>
-      )}
     </figure>
   );
 }
@@ -314,6 +552,8 @@ const PREVIEW_MIN_GAIN = 1.1;
 // the devices' width in the page, and how wide each is inside it (the laptop is 88%, the phone 21%);
 // an enlarged copy scales a device's bezel up from its in-page width
 const DEVICES_WIDTH = 600;
+// the TV's width in the page
+const TV_WIDTH = 520;
 const LAPTOP_SHARE = 0.88;
 const PHONE_SHARE = 0.21;
 // how tall each device is compared with its width (laptop: screen 16:10 plus bezel and base;
@@ -350,6 +590,69 @@ function useBothLoaded(enabled: boolean, ...srcs: string[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled]);
   return ready;
+}
+
+// The GIFs are a few MB each, so they only start loading as their device nears the screen
+function useNearScreen(ref: React.RefObject<HTMLElement | null>) {
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setNear(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setNear(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
+  return near;
+}
+
+// Where an enlarged copy of a device goes: next to the window (right first, then left) or, when
+// there's no room beside it, over the window itself. `aspect` is the device's height over its
+// width, `cap` the widest it may get, `minSide` the narrowest room worth using, and `bigEnough`
+// whether a candidate width is clearly bigger than the window. Returns null when there's nothing
+// to gain, so the hover does nothing.
+function placePreview(opts: {
+  win: DOMRect;
+  mine: DOMRect;
+  aspect: number;
+  cap: number;
+  minSide: number;
+  bigEnough: (width: number) => boolean;
+}): { left: number; top: number; width: number } | null {
+  const { win, mine, aspect, cap, minSide, bigEnough } = opts;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const spaceRight = vw - win.right - PREVIEW_GAP - PREVIEW_EDGE;
+  const spaceLeft = win.left - PREVIEW_GAP - PREVIEW_EDGE;
+  const widthRight = Math.min(cap, spaceRight);
+  const widthLeft = Math.min(cap, spaceLeft);
+  let width: number;
+  let left: number;
+  if (spaceRight >= minSide && bigEnough(widthRight)) {
+    width = widthRight;
+    left = win.right + PREVIEW_GAP;
+  } else if (spaceLeft >= minSide && bigEnough(widthLeft)) {
+    width = widthLeft;
+    left = win.left - PREVIEW_GAP - width;
+  } else {
+    width = Math.min(cap, vw - PREVIEW_EDGE * 2);
+    left = Math.min(Math.max(win.left + win.width / 2 - width / 2, PREVIEW_EDGE), vw - PREVIEW_EDGE - width);
+  }
+  if (!bigEnough(width)) return null;
+  const height = width * aspect;
+  const centre = mine.top + mine.height / 2;
+  const top = Math.min(Math.max(centre - height / 2, PREVIEW_EDGE), Math.max(PREVIEW_EDGE, vh - PREVIEW_EDGE - height));
+  return { left, top, width };
 }
 
 // A screen's picture: the image once it's ready to play, otherwise a blank of the same shape
@@ -438,74 +741,27 @@ function Devices({ laptop, phone }: { laptop: Figure; phone?: Figure }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   // whether each device has room for an enlarged copy (decides the zoom cursor)
   const [zoomable, setZoomable] = useState<Record<Kind, boolean>>({ laptop: true, phone: true });
-  // the GIFs are a few MB each, so they only start loading as the devices near the screen
-  const [near, setNear] = useState(false);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") {
-      setNear(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setNear(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: "600px 0px" }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  const near = useNearScreen(rootRef);
   const ready = useBothLoaded(near, laptop.src, ...(phone ? [phone.src] : []));
 
   function show(kind: Kind, el: HTMLElement) {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-    const vw = window.innerWidth;
     const vh = window.innerHeight;
     const win = (rootRef.current?.closest(".aqua-window") ?? el).getBoundingClientRect();
-    const mine = el.getBoundingClientRect();
     const aspect = kind === "laptop" ? LAPTOP_ASPECT : PHONE_ASPECT;
-    // the largest this device can be: its own cap, and short enough for the screen
-    const cap = Math.min(kind === "laptop" ? PREVIEW_MAX_WIDTH : 520, (vh - PREVIEW_EDGE * 2) / aspect);
-    const minSide = kind === "laptop" ? PREVIEW_MIN_WIDTH : 240;
-    // "clearly bigger than the window": the laptop by width, the phone by height
-    const bigEnough = (w: number) =>
-      kind === "laptop" ? w >= win.width * PREVIEW_MIN_GAIN : w * aspect >= win.height * PREVIEW_MIN_GAIN;
-
-    const spaceRight = vw - win.right - PREVIEW_GAP - PREVIEW_EDGE;
-    const spaceLeft = win.left - PREVIEW_GAP - PREVIEW_EDGE;
-    const widthRight = Math.min(cap, spaceRight);
-    const widthLeft = Math.min(cap, spaceLeft);
-    let width: number;
-    let left: number;
-    if (spaceRight >= minSide && bigEnough(widthRight)) {
-      width = widthRight;
-      left = win.right + PREVIEW_GAP;
-    } else if (spaceLeft >= minSide && bigEnough(widthLeft)) {
-      width = widthLeft;
-      left = win.left - PREVIEW_GAP - width;
-    } else {
-      // no room beside the window (e.g. it sits in the middle): enlarge over the window itself
-      width = Math.min(cap, vw - PREVIEW_EDGE * 2);
-      left = Math.min(
-        Math.max(win.left + win.width / 2 - width / 2, PREVIEW_EDGE),
-        vw - PREVIEW_EDGE - width
-      );
-    }
-    if (!bigEnough(width)) {
-      setZoomable((z) => ({ ...z, [kind]: false }));
-      return;
-    }
-    setZoomable((z) => ({ ...z, [kind]: true }));
-    const height = width * aspect;
-    const centre = mine.top + mine.height / 2;
-    const top = Math.min(
-      Math.max(centre - height / 2, PREVIEW_EDGE),
-      Math.max(PREVIEW_EDGE, vh - PREVIEW_EDGE - height)
-    );
-    setPreview({ kind, left, top, width });
+    const placed = placePreview({
+      win,
+      mine: el.getBoundingClientRect(),
+      aspect,
+      // the largest this device can be: its own cap, and short enough for the screen
+      cap: Math.min(kind === "laptop" ? PREVIEW_MAX_WIDTH : 520, (vh - PREVIEW_EDGE * 2) / aspect),
+      minSide: kind === "laptop" ? PREVIEW_MIN_WIDTH : 240,
+      // "clearly bigger than the window": the laptop by width, the phone by height
+      bigEnough: (w) =>
+        kind === "laptop" ? w >= win.width * PREVIEW_MIN_GAIN : w * aspect >= win.height * PREVIEW_MIN_GAIN,
+    });
+    setZoomable((z) => ({ ...z, [kind]: !!placed }));
+    if (placed) setPreview({ kind, ...placed });
   }
 
   return (
@@ -559,6 +815,107 @@ function Devices({ laptop, phone }: { laptop: Figure; phone?: Figure }) {
   );
 }
 
+// A plain flat-screen TV: a thin dark bezel around the screen and a small stand.
+// `scale` thickens the bezel and stand when the TV is drawn larger.
+function TvFrame({
+  figure,
+  overlay,
+  ready,
+  scale,
+}: {
+  figure: Figure;
+  overlay?: TvOverlay;
+  ready: boolean;
+  scale: number;
+}) {
+  return (
+    <div className="w-full">
+      <div
+        className="bg-[#1c1c1e] shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+        style={{ borderRadius: 5 * scale, padding: 5 * scale }}
+      >
+        <div className="relative">
+          <Screen figure={figure} ready={ready} radius={1.5 * scale} />
+          {overlay && ready && (
+            // eslint-disable-next-line @next/next/no-img-element -- animated PNG, positioned over the screen
+            <img
+              src={overlay.src}
+              alt={overlay.alt}
+              draggable={false}
+              className="pointer-events-none absolute h-auto"
+              style={{ left: `${overlay.left}%`, top: `${overlay.top}%`, width: `${overlay.width}%` }}
+            />
+          )}
+        </div>
+      </div>
+      <div
+        className="mx-auto bg-gradient-to-b from-[#9d9da1] to-[#c9c9cd]"
+        style={{ width: "22%", height: 9 * scale, clipPath: "polygon(22% 0, 78% 0, 100% 100%, 0 100%)" }}
+      />
+      <div
+        className="mx-auto bg-gradient-to-b from-[#d4d4d7] to-[#b2b2b6] shadow-[0_1px_2px_rgba(0,0,0,0.25)]"
+        style={{ width: "38%", height: 4 * scale, borderRadius: `${2 * scale}px` }}
+      />
+    </div>
+  );
+}
+
+// A TV showing a GIF, in the page. Like the laptop and phone, hovering it on a mouse device
+// opens a bigger copy next to (or over) the window; touch devices just see the small one.
+function TvMockup({ screen, overlay }: { screen: Figure; overlay?: TvOverlay }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
+  const [zoomable, setZoomable] = useState(true);
+  const near = useNearScreen(rootRef);
+  // the overlay (e.g. a remote) is its own animation, so it starts together with the screen
+  const ready = useBothLoaded(near, screen.src, ...(overlay ? [overlay.src] : []));
+
+  function show(el: HTMLElement) {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const win = (rootRef.current?.closest(".aqua-window") ?? el).getBoundingClientRect();
+    const mine = el.getBoundingClientRect();
+    const aspect = mine.height / mine.width;
+    const placed = placePreview({
+      win,
+      mine,
+      aspect,
+      cap: Math.min(PREVIEW_MAX_WIDTH, (window.innerHeight - PREVIEW_EDGE * 2) / aspect),
+      minSide: PREVIEW_MIN_WIDTH,
+      bigEnough: (w) => w >= win.width * PREVIEW_MIN_GAIN,
+    });
+    setZoomable(!!placed);
+    setPreview(placed);
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      // an overlay can hang below the TV, so leave room for it
+      className={`relative mx-auto w-full ${overlay ? "mb-6" : ""}`}
+      style={{ maxWidth: TV_WIDTH }}
+    >
+      <div
+        onMouseEnter={(e) => show(e.currentTarget)}
+        onMouseLeave={() => setPreview(null)}
+        className={zoomable ? "cursor-zoom-in" : ""}
+      >
+        <TvFrame figure={screen} overlay={overlay} ready={ready} scale={1} />
+      </div>
+      {preview &&
+        createPortal(
+          <div
+            aria-hidden
+            className="hover-preview pointer-events-none fixed z-[9500]"
+            style={{ left: preview.left, top: preview.top, width: preview.width }}
+          >
+            <TvFrame figure={screen} overlay={overlay} ready={ready} scale={Math.max(1, preview.width / TV_WIDTH)} />
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
+
 // What a protected project shows until it's unlocked: a padlock and a password field.
 function LockScreen({ title, onUnlock }: { title?: string; onUnlock: () => void }) {
   const [value, setValue] = useState("");
@@ -571,7 +928,7 @@ function LockScreen({ title, onUnlock }: { title?: string; onUnlock: () => void 
     e.preventDefault();
     if (checking) return;
     setChecking(true);
-    const ok = await checkPassword(value);
+    const ok = await unlock(value);
     setChecking(false);
     if (ok) {
       onUnlock();
@@ -714,7 +1071,7 @@ function SplitRow({ left, right }: { left: Block[]; right: Figure }) {
 // An image that, on a mouse device, opens an enlarged copy next to the window when hovered
 // (or over the window, if there's no room beside it), like the laptop and phone mockups.
 // It must come out clearly bigger than the image is on the page, or nothing happens.
-function ZoomFigure({ figure }: { figure: Figure }) {
+function ZoomFigure({ figure, gain = 1.5 }: { figure: Figure; gain?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
   const [zoomable, setZoomable] = useState(true);
@@ -731,7 +1088,7 @@ function ZoomFigure({ figure }: { figure: Figure }) {
     // the enlarged copy sits on a white card with 12px of padding all round
     const pad = 24;
     const cap = Math.min(PREVIEW_MAX_WIDTH, (vh - PREVIEW_EDGE * 2 - pad) / aspect + pad);
-    const bigEnough = (w: number) => w >= mine.width * 1.5;
+    const bigEnough = (w: number) => w >= mine.width * gain;
     const minSide = 240;
 
     const spaceRight = vw - win.right - PREVIEW_GAP - PREVIEW_EDGE;

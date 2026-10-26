@@ -1,8 +1,6 @@
 // a phrase in the about timeline that opens a project from the work folder
 export type AboutLink = { text: string; folder: string; project: string };
-// `message` is what a single project window says until its case study is ready
-// (it takes priority over the folder's `placeholder`)
-export type WorkItem = { title: string; platform?: string; comingSoon?: boolean; message?: string };
+export type WorkItem = { title: string; platform?: string; comingSoon?: boolean };
 // `placeholder` is what the folder's project windows say until there are case studies
 // `locked` folders ask for a password before any of their projects open
 export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string; locked?: boolean };
@@ -25,9 +23,9 @@ export const site = {
     timeline: [
       {
         year: "2026",
-        text: "YouTube TV, senior designer. Most recently, led the product and design direction for innovative experiences such as Multiview from 0 → 100. Also the design lead for core experiences such as the Library and Watch pages, sign-in and identity across TV, web, mobile, and tablet, and did visioning/redesign work alongside vis D.",
+        text: "YouTube TV, senior designer. Most recently, led the product and design direction for innovative experiences such as multiview from 0 → 100. Also the design lead for core experiences such as the Library and Watch pages, sign-in and identity across TV, web, mobile, and tablet, and did visioning/redesign work alongside vis D.",
         links: [
-          { text: "Multiview", folder: "YouTube TV", project: "Multiview" },
+          { text: "multiview", folder: "YouTube TV", project: "Multiview" },
           { text: "Library", folder: "YouTube TV", project: "Library" },
           { text: "Watch", folder: "YouTube TV", project: "Watch" },
           { text: "sign-in and identity", folder: "YouTube TV", project: "Identity" },
@@ -130,7 +128,7 @@ export const site = {
       locked: true,
       placeholder: "Stay tuned...",
       items: [
-        { title: "Multiview", platform: "TV, Mobile/Tablet", message: "Going live Monday, Oct 26" },
+        { title: "Multiview", platform: "TV, Mobile/Tablet" },
         { title: "Watch", platform: "TV", comingSoon: true },
         { title: "Library", platform: "TV", comingSoon: true },
         { title: "Identity", platform: "TV", comingSoon: true },
@@ -140,7 +138,7 @@ export const site = {
       name: "YouTube Living Room",
       locked: true,
       placeholder: "Stay tuned...",
-      items: [{ title: "Identity", platform: "TV, Mobile", message: "Going live Monday, Oct 26" }],
+      items: [{ title: "Identity", platform: "TV, Mobile" }],
     },
     {
       name: "Google Photos",

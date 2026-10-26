@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# protected case studies and the key that locks them stay off GitHub
+/private/
+.env*.local

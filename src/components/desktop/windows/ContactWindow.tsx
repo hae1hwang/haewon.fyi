@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useForm } from "@formspree/react";
 import { site } from "@/data/site";
+import { ExternalLinkIcon } from "../icons";
 
 // same look as the "Download resume" link in about.txt: grey like the text,
 // underlined, light blue highlight and darker text on hover
@@ -347,6 +348,7 @@ export function ContactWindow() {
                     className={linkClass}
                   >
                     LinkedIn
+                    <ExternalLinkIcon />
                   </a>
                 </>
               )}

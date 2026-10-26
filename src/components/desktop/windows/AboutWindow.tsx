@@ -1,4 +1,5 @@
 import { site, type AboutLink } from "@/data/site";
+import { ExternalLinkIcon } from "../icons";
 
 type OpenProject = (folder: string, title: string, origin: { x: number; y: number }) => void;
 
@@ -69,20 +70,7 @@ export function AboutWindow({ onOpenProject }: { onOpenProject: OpenProject }) {
           >
             Download resume
           </a>
-          {/* diagonal arrow: the usual "opens in a new tab" cue */}
-          <svg
-            viewBox="0 0 24 24"
-            className="ml-1 inline-block h-[0.85em] w-[0.85em] -translate-y-px"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M7 17 17 7" />
-            <path d="M8 7h9v9" />
-          </svg>
+          <ExternalLinkIcon />
         </p>
       </div>
     </div>

@@ -13,6 +13,7 @@ import { site } from "@/data/site";
 import { ContactWindow } from "./windows/ContactWindow";
 import { ProjectWindow } from "./windows/ProjectWindow";
 import { getCaseStudy } from "@/data/caseStudies";
+import { lock as lockVault } from "@/lib/vault";
 import { parseProjectWindowId, projectWindowId } from "./projects";
 
 type Offset = { x: number; y: number };
@@ -327,7 +328,10 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   const unlocked = unlockedAt !== null;
   useEffect(() => {
     if (unlockedAt === null) return;
-    const lock = () => setUnlockedAt(null);
+    const lock = () => {
+      lockVault();
+      setUnlockedAt(null);
+    };
     const timer = window.setTimeout(lock, Math.max(0, unlockedAt + UNLOCK_MS - Date.now()));
     // timers pause while a laptop sleeps, so also check the clock when the tab comes back
     const onVisible = () => {
@@ -491,20 +495,18 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
       icon: <NoteIcon />,
       initial: { x: 140, y: 90 },
       width: PROJECT_WINDOW.maxWidth,
-      render: () => {
-        const item = folder?.items.find((i) => i.title === project?.title);
-        return (
-          <ProjectWindow
-            message={item?.message ?? folder?.placeholder ?? "Coming soon"}
-            caseStudy={project ? getCaseStudy(project.folder, project.title) : undefined}
-            title={project?.title}
-            locked={!!folder?.locked && !unlocked}
-            onUnlock={() => {
-              setUnlockedAt(Date.now());
-            }}
-          />
-        );
-      },
+      render: () => (
+        <ProjectWindow
+          message={folder?.placeholder ?? "Coming soon"}
+          caseStudy={project && !folder?.locked ? getCaseStudy(project.folder, project.title) : undefined}
+          protectedProject={project && folder?.locked ? project : undefined}
+          title={project?.title}
+          locked={!!folder?.locked && !unlocked}
+          onUnlock={() => {
+            setUnlockedAt(Date.now());
+          }}
+        />
+      ),
     };
   }
 
