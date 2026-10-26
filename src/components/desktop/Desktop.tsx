@@ -12,6 +12,7 @@ import { FinderWindow, FINDER_EXPANDED_WIDTH } from "./windows/FinderWindow";
 import { site } from "@/data/site";
 import { ContactWindow } from "./windows/ContactWindow";
 import { ProjectWindow } from "./windows/ProjectWindow";
+import { getCaseStudy } from "@/data/caseStudies";
 import { parseProjectWindowId, projectWindowId } from "./projects";
 
 type Offset = { x: number; y: number };
@@ -137,8 +138,8 @@ const DESKTOP_ICONS: { id: DesktopId; label: string }[] = [
 const PROJECT_WINDOW = {
   maxHeight: 943,
   heightVh: 87,
-  maxWidth: 698, // 0.74 x maxHeight
-  widthRatio: 0.74,
+  maxWidth: 754, // 0.8 x maxHeight
+  widthRatio: 0.8,
 };
 const PROJECT_BAND = { top: 24, bottom: 72, cascadeRoom: 64 };
 const PROJECT_MIN_HEIGHT = 300;
@@ -433,31 +434,38 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     );
   }
 
-  // swaps this window for the next project, in place (no new window)
+  // swaps this window for the next (or previous) project, in place (no new window), unless that
+  // project is already open, in which case it just comes to the front
   // `from` is where the current window sits on screen: on desktop the next
   // project opens exactly there, even if the window had been dragged
-  function goToNextProject(id: WindowId, from?: DOMRect) {
+  function goToAdjacentProject(id: WindowId, step: 1 | -1, from?: DOMRect) {
     const cur = parseProjectWindowId(id);
     if (!cur) return;
     const seq = projectSequence(cur.folder);
     const i = seq.findIndex((p) => p.folder === cur.folder && p.title === cur.title);
     if (seq.length < 2 || i < 0) return;
-    const next = seq[(i + 1) % seq.length];
+    const next = seq[(i + step + seq.length) % seq.length];
     const nextId = projectWindowId(next.folder, next.title);
     const isPhone = window.matchMedia("(max-width: 639px)").matches;
-    setWindows((w) => ({
-      ...w,
-      [id]: { ...w[id], open: false },
-      [nextId]: w[nextId]?.open
-        ? { ...w[nextId], z: nextZ() }
+    setWindowsHidden(false);
+    setWindows((w) =>
+      // the next project is already open: leave this window where it is and
+      // just bring that one to the front
+      w[nextId]?.open
+        ? { ...w, [nextId]: { ...w[nextId], z: nextZ() } }
         : {
-            open: true,
-            z: nextZ(),
-            slot: w[id]?.slot,
-            initial: from && !isPhone ? { x: from.left, y: from.top } : w[id]?.initial,
-            detached: !!from && !isPhone,
-          },
-    }));
+            ...w,
+            // otherwise swap this window for the next project, in place
+            [id]: { ...w[id], open: false },
+            [nextId]: {
+              open: true,
+              z: nextZ(),
+              slot: w[id]?.slot,
+              initial: from && !isPhone ? { x: from.left, y: from.top } : w[id]?.initial,
+              detached: !!from && !isPhone,
+            },
+          }
+    );
   }
 
   function getApp(id: WindowId) {
@@ -475,6 +483,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
         return (
           <ProjectWindow
             message={item?.message ?? folder?.placeholder ?? "Coming soon"}
+            caseStudy={project ? getCaseStudy(project.folder, project.title) : undefined}
             title={project?.title}
             locked={!!folder?.locked && !unlocked}
             onUnlock={() => {
@@ -651,20 +660,35 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
             startDetached={w.detached}
             titlebarAction={
               id in APPS || projectSequence(parseProjectWindowId(id)?.folder ?? "").length < 2 ? undefined : (
-                <button
-                  type="button"
-                  data-titlebar-button
-                  onClick={(e) =>
-                    goToNextProject(id, e.currentTarget.closest(".aqua-window")?.getBoundingClientRect())
-                  }
-                  aria-label="Next project"
-                  className="next-project-btn"
-                >
-                  Next
-                  <svg viewBox="0 0 6 10" className="h-[9px] w-[6px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                    <path d="m1 1 4 4-4 4" />
-                  </svg>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    data-titlebar-button
+                    onClick={(e) =>
+                      goToAdjacentProject(id, -1, e.currentTarget.closest(".aqua-window")?.getBoundingClientRect())
+                    }
+                    aria-label="Previous project"
+                    className="prev-project-btn"
+                  >
+                    <svg viewBox="0 0 6 10" className="h-[9px] w-[6px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m5 1-4 4 4 4" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    data-titlebar-button
+                    onClick={(e) =>
+                      goToAdjacentProject(id, 1, e.currentTarget.closest(".aqua-window")?.getBoundingClientRect())
+                    }
+                    aria-label="Next project"
+                    className="next-project-btn"
+                  >
+                    Next
+                    <svg viewBox="0 0 6 10" className="h-[9px] w-[6px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m1 1 4 4-4 4" />
+                    </svg>
+                  </button>
+                </>
               )
             }
             closeAllSignal={closeAllSignal}

@@ -464,7 +464,7 @@ export function Window({
         </span>
         {/* mirrors the left cluster's width so the title stays centred */}
         {showTitlebarAction ? (
-          <div className="titlebar-side-wide flex shrink-0 items-center justify-end">
+          <div className="titlebar-side-wide flex shrink-0 items-center justify-end gap-1">
             {titlebarAction}
           </div>
         ) : (

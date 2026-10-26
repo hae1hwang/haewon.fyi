@@ -150,7 +150,7 @@ export const site = {
     },
     {
       name: "Vibe coding",
-      items: [{ title: "Portfolio site", platform: "Web, Mobile web", message: "Going live Sunday October 25" }],
+      items: [{ title: "Portfolio site", platform: "Web, Mobile web" }],
     },
   ] as WorkFolder[],
 };
