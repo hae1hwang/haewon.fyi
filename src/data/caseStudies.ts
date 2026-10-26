@@ -350,29 +350,7 @@ const portfolio: CaseStudy = {
    //   ],
     //},
 
-    { type: "heading", text: "Behind the scenes" },
-    {
-      type: "terms",
-      items: [
-        {
-          term: "Framework",
-          text: "Next.js (App Router) with React and TypeScript, exported as a fully static site. There is no server and no database.",
-        },
-        {
-          term: "Styling",
-          text: "Tailwind CSS plus a small hand-written stylesheet for the glossy window chrome, the dots and the pills.",
-        },
-        {
-          term: "Content",
-          text: "Typed data files hold the work folders and the case studies, so adding a project means adding an entry and some images.",
-        },
-        
-        {
-          term: "Contact form",
-          text: "Formspree delivers messages to my inbox, so the site doesn’t need a backend of its own.",
-        },
-      ],
-    },
+    
 { type: "heading", text: "Thoughts & takeaways", noSubLinks: true },
     {
       type: "p",
@@ -415,7 +393,29 @@ const portfolio: CaseStudy = {
       type: "p",
       text: "Another thing I noted is my own approach to interacting with Claude. It's interesting… I’m actually really polite to Claude. I say things like ‘*let’s* do this ‘ or ‘*we* can make this bigger’ instead of simply commanding it. I’m not sure why I do this but it only feels natural to do so. I also ask things like ‘how about… ‘ or ‘is it possible to…’ and end some prompts with a rhetorical ‘does that make sense?’ when I'm not super confident in my ask. I know it's unnecessary, but it feels like I'm working with a peer who's just super talented at implementing my ideas.",
     },
-   
+   { type: "heading", text: "Behind the scenes" },
+    {
+      type: "terms",
+      items: [
+        {
+          term: "Framework",
+          text: "Next.js (App Router) with React and TypeScript, exported as a fully static site. There is no server and no database.",
+        },
+        {
+          term: "Styling",
+          text: "Tailwind CSS plus a small hand-written stylesheet for the glossy window chrome, the dots and the pills.",
+        },
+        {
+          term: "Content",
+          text: "Typed data files hold the work folders and the case studies, so adding a project means adding an entry and some images.",
+        },
+        
+        {
+          term: "Contact form",
+          text: "Formspree delivers messages to my inbox, so the site doesn’t need a backend of its own.",
+        },
+      ],
+    },
   ],
 };
 
