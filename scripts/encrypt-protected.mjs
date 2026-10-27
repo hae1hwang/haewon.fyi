@@ -65,30 +65,51 @@ async function seal(plain) {
   return { bytes: out, digest };
 }
 
-// a copy of the content key sealed under each password
-async function vault(passwordList) {
+// a copy of the content key sealed under each password. An entry that already opens with its
+// password (and the same key) is kept as it is, so re-running changes nothing
+async function vault(passwordList, previous) {
+  const kekFor = async (pw, salt, usages) => {
+    const base = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: ITERATIONS, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, usages);
+  };
   const keys = [];
   for (const pw of passwordList) {
+    let kept = null;
+    for (const entry of previous) {
+      try {
+        const kek = await kekFor(pw, Buffer.from(entry.salt, "base64"), ["decrypt"]);
+        const opened = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: Buffer.from(entry.iv, "base64") }, kek, Buffer.from(entry.wrapped, "base64")));
+        if (Buffer.from(opened).equals(raw)) kept = entry;
+        break;
+      } catch {
+        // this entry belongs to another password
+      }
+    }
+    if (kept) {
+      keys.push(kept);
+      continue;
+    }
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const base = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveKey"]);
-    const kek = await crypto.subtle.deriveKey(
-      { name: "PBKDF2", salt, iterations: ITERATIONS, hash: "SHA-256" },
-      base,
-      { name: "AES-GCM", length: 256 },
-      false,
-      ["encrypt"]
-    );
+    const kek = await kekFor(pw, salt, ["encrypt"]);
     const wrapped = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, raw));
     keys.push({ salt: b64(salt), iv: b64(iv), wrapped: b64(wrapped) });
   }
   return { v: 1, iterations: ITERATIONS, keys };
 }
 
-const MIME = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
+const MIME = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml", mp4: "video/mp4" };
 
 const { protectedStudies } = await import(pathToFileURL(join(root, "private", "studies.ts")).href);
 const outDir = join(root, "public", "protected");
+// the existing password entries, read before the folder is rebuilt
+let previousKeys = [];
+try {
+  const old = JSON.parse(readFileSync(join(outDir, "vault.json"), "utf8"));
+  if (old.iterations === ITERATIONS) previousKeys = old.keys;
+} catch {
+  // first run
+}
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(join(outDir, "a"), { recursive: true });
 
@@ -97,7 +118,7 @@ const assetFiles = new Set();
 for (const [name, study] of Object.entries(protectedStudies)) {
   const json = JSON.stringify(study);
   // every image the study points to, wherever it appears (figures, devices, inline hover pictures…)
-  const paths = [...new Set(json.match(/\/work\/[A-Za-z0-9_\-/.]+\.(?:jpe?g|png|gif|webp|svg)/gi) ?? [])];
+  const paths = [...new Set(json.match(/\/work\/[A-Za-z0-9_\-/.]+\.(?:jpe?g|png|gif|webp|svg|mp4)/gi) ?? [])];
   const assets = {};
   for (const p of paths) {
     const file = join(root, "private", p);
@@ -118,5 +139,5 @@ for (const [name, study] of Object.entries(protectedStudies)) {
   studyCount++;
   console.log(`${name}: ${paths.length} images`);
 }
-writeFileSync(join(outDir, "vault.json"), JSON.stringify(await vault(passwords()), null, 1) + "\n");
+writeFileSync(join(outDir, "vault.json"), JSON.stringify(await vault(passwords(), previousKeys), null, 1) + "\n");
 console.log(`Locked ${studyCount} case studies and ${assetFiles.size} files into public/protected/`);

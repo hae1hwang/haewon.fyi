@@ -19,7 +19,9 @@ export type Block =
   // `short` is an optional shorter name for the link in the list under the heading above;
   // the heading in the page keeps its full `text`
   | { type: "subheading"; text: string; short?: string }
-  | { type: "p"; text: string }
+  // `note` is a footnote set small and grey under the paragraph; a block with only a `note` is
+  // just that line of small grey text
+  | { type: "p"; text?: string; note?: string }
   // a line of text set like code (monospaced, on a light grey background), e.g. a prompt
   | { type: "code"; text: string }
   | { type: "list"; items: string[] }
@@ -47,8 +49,9 @@ export type Block =
   // a laptop (web) with a phone (mobile) in front of it, each showing an image or animated GIF.
   // Hovering it on a mouse device opens an enlarged copy next to the window.
   | { type: "devices"; laptop: Figure; phone?: Figure }
-  // a TV showing an image or animated GIF; hover to enlarge, like the devices above
-  | { type: "tv"; screen: Figure; overlay?: TvOverlay }
+  // a TV showing an image or animated GIF, or (with `video`) a video that loops, muted, with `screen`
+  // as its poster; hover to enlarge, like the devices above
+  | { type: "tv"; screen: Figure; overlay?: TvOverlay; video?: string; remote?: TvRemote }
   // a two-column row: these blocks on the left, one image on the right (the image can be
   // hovered to enlarge it next to the window)
   | { type: "split"; left: Block[]; right: Figure }
@@ -58,6 +61,15 @@ export type Block =
 // an animation laid over a TV's screen (a remote, say), positioned and sized in percent of the
 // screen; it may hang past the screen's edge
 export type TvOverlay = { src: string; alt: string; left: number; top: number; width: number };
+
+// A remote and a thumb drawn live over a TV's video, following the video's own clock so they can't
+// drift from it. `thumb` is where the thumb is at each time (seconds, eased in between);
+// `presses` is when each button is held down: [button, from, to].
+export type TvRemoteKey = "ok" | "rt" | "lt" | "bk";
+export type TvRemote = {
+  thumb: [number, TvRemoteKey | "off"][];
+  presses: [TvRemoteKey, number, number][];
+};
 
 export type CaseStudy = {
   title: string;

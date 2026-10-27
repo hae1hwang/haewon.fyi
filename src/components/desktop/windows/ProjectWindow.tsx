@@ -5,7 +5,7 @@ import { ExternalLinkIcon, LockIcon } from "../icons";
 import { site } from "@/data/site";
 import { getProtectedStudy, unlock } from "@/lib/vault";
 import { createPortal } from "react-dom";
-import type { Block, CaseStudy, Figure, TvOverlay } from "@/data/caseStudies";
+import type { Block, CaseStudy, Figure, TvOverlay, TvRemote, TvRemoteKey } from "@/data/caseStudies";
 
 // A project window reads like a document: plain white page, one column, simple
 // type. Images are the only thing with a frame. Projects without a case study
@@ -101,8 +101,8 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
       <p className="mt-2 text-[#555]">{caseStudy.summary}</p>
 
       <dl className="mt-5 grid grid-cols-[88px_1fr] gap-x-4 gap-y-1.5 border-y border-[#e6e6e6] py-3 text-[12.5px] leading-snug">
-        {caseStudy.facts.map((f) => (
-          <div key={f.label} className="contents">
+        {caseStudy.facts.map((f, i) => (
+          <div key={i} className="contents">
             <dt className="text-[#8c8c8c]">{f.label}</dt>
             <dd className="text-[#333]">{f.value}</dd>
           </div>
@@ -167,7 +167,8 @@ const highlightClass =
 
 // Light text styling inside case study copy: **bold**, *italic* (or _italic_) and
 // ***bold italic***, plus [[phrase|/path/to/image.webp|credit]] for a phrase that shows a picture on
-// hover (the credit is optional and is printed over the picture's bottom left corner), and
+// hover (the credit is optional and is printed over the picture's bottom left corner; use
+// [[phrase|youtube:VIDEO_ID]] to play a YouTube video, muted, in the preview instead), and
 // [text](https://…) for a link that opens in a new tab.
 function inline(text: string): React.ReactNode {
   const parts = text.split(/(\[\[[^\]|]+\|[^\]]+\]\]|\[[^[\]]+\]\(https?:\/\/[^)\s]+\)|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g);
@@ -216,10 +217,10 @@ function inline(text: string): React.ReactNode {
 function ScatterItems({ board }: { board: Extract<Block, { type: "scatter" }> }) {
   return (
     <div className="relative w-full" style={{ aspectRatio: `${board.width} / ${board.height}` }}>
-      {board.items.map((it) => (
+      {board.items.map((it, i) => (
         // eslint-disable-next-line @next/next/no-img-element -- static export, pre-sized images
         <img
-          key={it.src}
+          key={i}
           src={it.src}
           alt={it.alt}
           loading="lazy"
@@ -296,15 +297,17 @@ function Scatter({ board }: { board: Extract<Block, { type: "scatter" }> }) {
 function HoverPhrase({ text, src, credit }: { text: string; src: string; credit?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const near = useNearScreen(ref);
-  // the picture's height over its width, known once it has loaded
-  const [ratio, setRatio] = useState<number | null>(null);
+  const videoId = src.startsWith("youtube:") ? src.slice(8) : null;
+  // the picture's height over its width, known once it has loaded (a video is always 16:9)
+  const [loadedRatio, setRatio] = useState<number | null>(null);
+  const ratio = videoId ? 9 / 16 : loadedRatio;
   const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
   useEffect(() => {
-    if (!near) return;
+    if (!near || videoId) return;
     const img = new Image();
     img.onload = () => setRatio(img.naturalHeight / img.naturalWidth);
     img.src = src;
-  }, [near, src]);
+  }, [near, src, videoId]);
 
   function show() {
     const el = ref.current;
@@ -324,14 +327,22 @@ function HoverPhrase({ text, src, credit }: { text: string; src: string; credit?
     );
   }
 
+  // a video's phrase is also a link to it on YouTube (opens in a new tab)
+  const Tag = videoId ? "a" : "span";
   return (
-    <span
-      ref={ref}
+    <Tag
+      ref={ref as React.Ref<HTMLAnchorElement & HTMLSpanElement>}
+      {...(videoId
+        ? { href: `https://www.youtube.com/watch?v=${videoId}`, target: "_blank", rel: "noopener noreferrer" }
+        : {})}
       onMouseEnter={show}
       onMouseLeave={() => setPreview(null)}
-      className="-mx-0.5 cursor-zoom-in rounded-[3px] px-0.5 underline decoration-[#b9b9b9] underline-offset-2 hover:bg-[#d9ebff] hover:decoration-[#333]"
+      className={`-mx-0.5 rounded-[3px] px-0.5 underline decoration-[#b9b9b9] underline-offset-2 hover:bg-[#d9ebff] hover:decoration-[#333] ${
+        videoId ? "" : "cursor-zoom-in"
+      }`}
     >
       {text}
+      {videoId && <ExternalLinkIcon />}
       {preview &&
         createPortal(
           <div
@@ -340,8 +351,24 @@ function HoverPhrase({ text, src, credit }: { text: string; src: string; credit?
             style={{ left: preview.left, top: preview.top, width: preview.width }}
           >
             <div className="relative rounded-[12px] bg-white p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element -- static export */}
-              <img src={src} alt="" draggable={false} className="block h-auto w-full rounded-[4px]" />
+              {videoId ? (
+                // the poster shows while the player loads; the player only exists while the phrase is hovered
+                <div
+                  className="relative aspect-video w-full overflow-hidden rounded-[4px] bg-black bg-cover bg-center"
+                  style={{ backgroundImage: `url(https://i.ytimg.com/vi/${videoId}/hqdefault.jpg)` }}
+                >
+                  <iframe
+                    title="Video preview"
+                    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&rel=0&modestbranding=1&playsinline=1&loop=1&playlist=${videoId}`}
+                    allow="autoplay; encrypted-media"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    className="absolute inset-0 h-full w-full border-0"
+                  />
+                </div>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- static export
+                <img src={src} alt="" draggable={false} className="block h-auto w-full rounded-[4px]" />
+              )}
               {credit && (
                 <span className="absolute bottom-[20px] left-[20px] rounded-[4px] bg-black/55 px-1.5 py-1 text-[11px] font-medium leading-none text-white">
                   {credit}
@@ -351,7 +378,7 @@ function HoverPhrase({ text, src, credit }: { text: string; src: string; credit?
           </div>,
           document.body
         )}
-    </span>
+    </Tag>
   );
 }
 
@@ -399,9 +426,18 @@ function BlockView({
       );
     case "p":
       return (
-        <p className="mt-3">
-          <Lines text={block.text} />
-        </p>
+        <>
+          {block.text && (
+            <p className="mt-3">
+              <Lines text={block.text} />
+            </p>
+          )}
+          {block.note && (
+            <p className={`${block.text ? "mt-2" : "mt-3"} text-[12.5px] leading-snug text-[#8c8c8c]`}>
+              <Lines text={block.note} />
+            </p>
+          )}
+        </>
       );
     case "code":
       return (
@@ -412,16 +448,16 @@ function BlockView({
     case "list":
       return (
         <ul className="mt-3 list-disc space-y-1 pl-5 marker:text-[#b5b5b5]">
-          {block.items.map((item) => (
-            <li key={item}>{inline(item)}</li>
+          {block.items.map((item, i) => (
+            <li key={i}>{inline(item)}</li>
           ))}
         </ul>
       );
     case "terms":
       return (
         <dl className="mt-3 space-y-2.5">
-          {block.items.map((t) => (
-            <div key={t.term}>
+          {block.items.map((t, i) => (
+            <div key={i}>
               <dt className="font-semibold text-[#222]">{t.term}</dt>
               {/* a list of texts gives one paragraph each, with a gap between them */}
               {(Array.isArray(t.text) ? t.text : [t.text]).map((para, i) => (
@@ -443,7 +479,7 @@ function BlockView({
       return (
         <div className="mt-2 text-[12px] leading-snug text-[#6f6f6f]">
           {block.items.map((l, k) => (
-            <Fragment key={l.href}>
+            <Fragment key={k}>
               {k > 0 && <span className="mx-1.5 text-[#c4c4c4]">|</span>}
               <a
                 href={l.href}
@@ -461,8 +497,8 @@ function BlockView({
     case "columns":
       return (
         <div className="mt-3 grid gap-x-6 gap-y-5 sm:grid-cols-3">
-          {block.items.map((c) => (
-            <div key={c.title} className="flex flex-col">
+          {block.items.map((c, i) => (
+            <div key={i} className="flex flex-col">
               <div className="font-semibold text-[#222]">{c.title}</div>
               <div>
                 <Lines text={c.text} />
@@ -479,8 +515,8 @@ function BlockView({
     case "stats":
       return (
         <div className="mt-4 flex flex-wrap gap-x-10 gap-y-3">
-          {block.items.map((s) => (
-            <div key={s.label}>
+          {block.items.map((s, i) => (
+            <div key={i}>
               <div className="text-[24px] font-semibold leading-none tracking-[-0.01em] text-[#111]">
                 {s.value}
               </div>
@@ -506,7 +542,7 @@ function BlockView({
     case "tv":
       return (
         <div className="mt-5">
-          <TvMockup screen={block.screen} overlay={block.overlay} />
+          <TvMockup screen={block.screen} overlay={block.overlay} video={block.video} remote={block.remote} />
         </div>
       );
     case "figures":
@@ -514,8 +550,8 @@ function BlockView({
         // each image takes a share of the row in proportion to its shape, so
         // side-by-side images line up at the same height
         <div className="mt-4 flex items-start gap-3">
-          {block.figures.map((f) => (
-            <div key={f.src} className="min-w-0" style={{ flex: f.width / f.height }}>
+          {block.figures.map((f, i) => (
+            <div key={i} className="min-w-0" style={{ flex: f.width / f.height }}>
               <FigureView figure={f} />
             </div>
           ))}
@@ -815,19 +851,170 @@ function Devices({ laptop, phone }: { laptop: Figure; phone?: Figure }) {
   );
 }
 
+// The remote and the thumb, drawn live over a TV's screen. They are laid out in the 2048 x 1152
+// space the screen was designed in, scaled to the screen's width, and move with the video's own
+// currentTime, so they are always in step with it.
+const REMOTE_X = 1793;
+const REMOTE_Y = 801;
+const REMOTE_SCALE = 1.15;
+const REMOTE_POINTS: Record<TvRemoteKey | "off", { x: number; y: number }> = {
+  ok: { x: REMOTE_X + 95 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
+  rt: { x: REMOTE_X + 149 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
+  lt: { x: REMOTE_X + 41 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
+  bk: { x: REMOTE_X + 95 * REMOTE_SCALE, y: REMOTE_Y + 305 * REMOTE_SCALE },
+  off: { x: 1990, y: 1420 },
+};
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+const easeInOut = (n: number) => {
+  const t = clamp01(n);
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+};
+
+function TvRemoteLayer({ remote, videoRef }: { remote: TvRemote; videoRef: React.RefObject<HTMLVideoElement | null> }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [k, setK] = useState(0);
+  const okhRef = useRef<HTMLDivElement>(null);
+  const bkhRef = useRef<HTMLDivElement>(null);
+  const hRRef = useRef<SVGCircleElement>(null);
+  const hLRef = useRef<SVGCircleElement>(null);
+  const aRRef = useRef<SVGPathElement>(null);
+  const aLRef = useRef<SVGPathElement>(null);
+  const fingerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setK(el.getBoundingClientRect().width / 2048));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  useEffect(() => {
+    let raf = 0;
+    const press = (t: number, a: number, b: number) => clamp01(Math.min((t - a) / 0.08, (b - t) / 0.08));
+    const keys = remote.thumb;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const v = videoRef.current;
+      if (!v) return;
+      const t = v.currentTime;
+      const act = { ok: 0, rt: 0, lt: 0, bk: 0 };
+      for (const [key, a, b] of remote.presses) act[key] = Math.max(act[key], press(t, a, b));
+      if (okhRef.current) okhRef.current.style.opacity = String(0.26 * act.ok);
+      if (bkhRef.current) bkhRef.current.style.opacity = String(0.26 * act.bk);
+      if (hRRef.current) hRRef.current.style.opacity = String(0.24 * act.rt);
+      if (hLRef.current) hLRef.current.style.opacity = String(0.24 * act.lt);
+      if (aRRef.current) aRRef.current.style.opacity = String(0.78 + 0.22 * act.rt);
+      if (aLRef.current) aLRef.current.style.opacity = String(0.78 + 0.22 * act.lt);
+      let pos = REMOTE_POINTS[keys[0][1]];
+      for (let i = 0; i < keys.length - 1; i++) {
+        const [a, name] = keys[i];
+        const [b, next] = keys[i + 1];
+        if (t >= a && t <= b) {
+          const u = easeInOut((t - a) / (b - a));
+          const p0 = REMOTE_POINTS[name];
+          const p1 = REMOTE_POINTS[next];
+          pos = { x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u };
+        }
+      }
+      const first = keys[0][0];
+      const last = keys[keys.length - 1][0];
+      if (t > last) pos = REMOTE_POINTS[keys[keys.length - 1][1]];
+      const f = fingerRef.current;
+      if (f) {
+        f.style.opacity = String(clamp01((t - first) / 0.3) * clamp01((last - t) / 0.3));
+        f.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${1 - 0.16 * Math.max(act.ok, act.rt, act.lt, act.bk)})`;
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [remote, videoRef]);
+
+  const dim = "inset 0 0 0 2px rgba(255,255,255,0.12)";
+  return (
+    <div ref={hostRef} aria-hidden className="pointer-events-none absolute inset-0">
+      <div style={{ position: "absolute", left: 0, top: 0, width: 2048, height: 1152, transform: `scale(${k})`, transformOrigin: "0 0" }}>
+        <div
+          style={{
+            position: "absolute",
+            left: REMOTE_X,
+            top: REMOTE_Y,
+            width: 190,
+            height: 420,
+            transform: `scale(${REMOTE_SCALE})`,
+            transformOrigin: "0 0",
+            borderRadius: 46,
+            background: "linear-gradient(160deg,#333338,#17171a)",
+            boxShadow: "0 12px 28px rgba(0,0,0,.55), inset 0 0 0 2.5px rgba(255,255,255,.16)",
+          }}
+        >
+          <div style={{ position: "absolute", left: 21, top: 66, width: 148, height: 148, borderRadius: "50%", background: "#0e0e11", boxShadow: "inset 0 0 0 2px rgba(255,255,255,.1)" }} />
+          <svg width="190" height="420" viewBox="0 0 190 420" style={{ position: "absolute", left: 0, top: 0 }}>
+            <g fill="#fff">
+              <path d="M95 76 L84 93 L106 93Z" opacity=".78" />
+              <path d="M95 204 L84 187 L106 187Z" opacity=".78" />
+              <path ref={aLRef} d="M31 140 L48 129 L48 151Z" opacity=".78" />
+              <path ref={aRRef} d="M159 140 L142 129 L142 151Z" opacity=".78" />
+            </g>
+            <circle ref={hRRef} cx="149" cy="140" r="27" fill="#fff" opacity="0" />
+            <circle ref={hLRef} cx="41" cy="140" r="27" fill="#fff" opacity="0" />
+          </svg>
+          <div style={{ position: "absolute", left: 61, top: 106, width: 68, height: 68, borderRadius: "50%", background: "#333338", boxShadow: dim, color: "#fff", font: "700 24px Helvetica, Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            OK
+            <div ref={okhRef} style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#fff", opacity: 0 }} />
+          </div>
+          <div style={{ position: "absolute", left: 65, top: 275, width: 60, height: 60, borderRadius: "50%", background: "#333338", boxShadow: dim }}>
+            <svg width="60" height="60" viewBox="0 0 60 60" style={{ position: "absolute", left: 0, top: 0 }}>
+              <path d="M42 30 H18 M28 19 L17 30 L28 41" stroke="#fff" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" opacity=".88" />
+            </svg>
+            <div ref={bkhRef} style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "#fff", opacity: 0 }} />
+          </div>
+        </div>
+        <div
+          ref={fingerRef}
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: 84,
+            height: 84,
+            margin: "-42px 0 0 -42px",
+            borderRadius: "50%",
+            opacity: 0,
+            background: "radial-gradient(circle at 34% 28%, rgba(255,255,255,.9), rgba(255,255,255,.4) 48%, rgba(255,255,255,.18) 100%)",
+            border: "3px solid rgba(255,255,255,.95)",
+            boxShadow: "0 0 0 2px rgba(0,0,0,.18), 0 14px 30px rgba(0,0,0,.32), inset 0 3px 5px rgba(255,255,255,.95), inset 0 -8px 14px rgba(0,0,0,.12)",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // A plain flat-screen TV: a thin dark bezel around the screen and a small stand.
-// `scale` thickens the bezel and stand when the TV is drawn larger.
+// `scale` thickens the bezel and stand when the TV is drawn larger. The screen shows `figure`
+// (an image or GIF) or, with `video`, a muted looping video with the remote drawn live over it.
 function TvFrame({
   figure,
   overlay,
+  video,
+  remote,
+  videoRef,
+  startAt,
   ready,
   scale,
 }: {
   figure: Figure;
   overlay?: TvOverlay;
+  video?: string;
+  remote?: TvRemote;
+  videoRef?: React.RefObject<HTMLVideoElement | null>;
+  startAt?: number;
   ready: boolean;
   scale: number;
 }) {
+  const ownRef = useRef<HTMLVideoElement>(null);
+  const ref = videoRef ?? ownRef;
   return (
     <div className="w-full">
       <div
@@ -835,7 +1022,27 @@ function TvFrame({
         style={{ borderRadius: 5 * scale, padding: 5 * scale }}
       >
         <div className="relative">
-          <Screen figure={figure} ready={ready} radius={1.5 * scale} />
+          {video && ready ? (
+            <video
+              ref={ref}
+              src={video}
+              poster={figure.src}
+              aria-label={figure.alt}
+              muted
+              loop
+              autoPlay
+              playsInline
+              preload="auto"
+              onLoadedMetadata={(e) => {
+                if (startAt) e.currentTarget.currentTime = startAt;
+              }}
+              className="block h-auto w-full bg-black"
+              style={{ borderRadius: 1.5 * scale, aspectRatio: `${figure.width} / ${figure.height}` }}
+            />
+          ) : (
+            <Screen figure={figure} ready={video ? true : ready} radius={1.5 * scale} />
+          )}
+          {video && ready && remote && <TvRemoteLayer remote={remote} videoRef={ref} />}
           {overlay && ready && (
             // eslint-disable-next-line @next/next/no-img-element -- animated PNG, positioned over the screen
             <img
@@ -860,15 +1067,17 @@ function TvFrame({
   );
 }
 
-// A TV showing a GIF, in the page. Like the laptop and phone, hovering it on a mouse device
-// opens a bigger copy next to (or over) the window; touch devices just see the small one.
-function TvMockup({ screen, overlay }: { screen: Figure; overlay?: TvOverlay }) {
+// A TV showing a GIF or a video, in the page. Like the laptop and phone, hovering it on a mouse
+// device opens a bigger copy next to (or over) the window; touch devices just see the small one.
+function TvMockup({ screen, overlay, video, remote }: { screen: Figure; overlay?: TvOverlay; video?: string; remote?: TvRemote }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [preview, setPreview] = useState<{ left: number; top: number; width: number; startAt: number } | null>(null);
   const [zoomable, setZoomable] = useState(true);
   const near = useNearScreen(rootRef);
   // the overlay (e.g. a remote) is its own animation, so it starts together with the screen
-  const ready = useBothLoaded(near, screen.src, ...(overlay ? [overlay.src] : []));
+  const gifReady = useBothLoaded(near && !video, screen.src, ...(overlay ? [overlay.src] : []));
+  const ready = video ? near : gifReady;
 
   function show(el: HTMLElement) {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
@@ -884,14 +1093,15 @@ function TvMockup({ screen, overlay }: { screen: Figure; overlay?: TvOverlay }) 
       bigEnough: (w) => w >= win.width * PREVIEW_MIN_GAIN,
     });
     setZoomable(!!placed);
-    setPreview(placed);
+    // the bigger copy picks up where the small one is
+    setPreview(placed ? { ...placed, startAt: videoRef.current?.currentTime ?? 0 } : null);
   }
 
   return (
     <div
       ref={rootRef}
       // an overlay can hang below the TV, so leave room for it
-      className={`relative mx-auto w-full ${overlay ? "mb-6" : ""}`}
+      className={`relative mx-auto w-full ${overlay || remote ? "mb-6" : ""}`}
       style={{ maxWidth: TV_WIDTH }}
     >
       <div
@@ -899,7 +1109,7 @@ function TvMockup({ screen, overlay }: { screen: Figure; overlay?: TvOverlay }) 
         onMouseLeave={() => setPreview(null)}
         className={zoomable ? "cursor-zoom-in" : ""}
       >
-        <TvFrame figure={screen} overlay={overlay} ready={ready} scale={1} />
+        <TvFrame figure={screen} overlay={overlay} video={video} remote={remote} videoRef={videoRef} ready={ready} scale={1} />
       </div>
       {preview &&
         createPortal(
@@ -908,7 +1118,15 @@ function TvMockup({ screen, overlay }: { screen: Figure; overlay?: TvOverlay }) 
             className="hover-preview pointer-events-none fixed z-[9500]"
             style={{ left: preview.left, top: preview.top, width: preview.width }}
           >
-            <TvFrame figure={screen} overlay={overlay} ready={ready} scale={Math.max(1, preview.width / TV_WIDTH)} />
+            <TvFrame
+              figure={screen}
+              overlay={overlay}
+              video={video}
+              remote={remote}
+              startAt={preview.startAt}
+              ready={ready}
+              scale={Math.max(1, preview.width / TV_WIDTH)}
+            />
           </div>,
           document.body
         )}

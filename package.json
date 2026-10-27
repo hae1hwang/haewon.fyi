@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "encrypt": "node scripts/encrypt-protected.mjs"
+    "encrypt": "node scripts/encrypt-protected.mjs",
+    "dev:next": "next dev"
   },
   "dependencies": {
     "@formspree/react": "^3.0.0",
