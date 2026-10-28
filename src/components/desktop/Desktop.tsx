@@ -14,6 +14,7 @@ import { ContactWindow } from "./windows/ContactWindow";
 import { ProjectWindow } from "./windows/ProjectWindow";
 import { getCaseStudy } from "@/data/caseStudies";
 import { lock as lockVault } from "@/lib/vault";
+import { track } from "@/lib/analytics";
 import { parseProjectWindowId, projectWindowId } from "./projects";
 
 type Offset = { x: number; y: number };
@@ -409,6 +410,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
   // origin is the icon's center, so the window can grow out of it
   function openWindow(id: WindowId, origin: Offset) {
     setWindowsHidden(false);
+    if (!windows[id]?.open) track(`open/${id}`, id);
     if (FINDER_IDS.includes(id)) setLastFinderId(id);
     const app = APPS[id as DesktopId];
     const initial = windows[id]?.open
@@ -427,6 +429,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     // the first project window is dead centre; each further one takes the
     // lowest stagger slot not held by a window that is still open
     const alreadyOpen = windows[id]?.open;
+    if (!alreadyOpen) track(`project/${folder}/${title}`, `${title} · ${folder}`);
     const taken = new Set(
       Object.entries(windows)
         .filter(([k, v]) => k.startsWith("project:") && v.open)
@@ -464,6 +467,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
     const next = seq[(i + step + seq.length) % seq.length];
     const nextId = projectWindowId(next.folder, next.title);
     const isPhone = window.matchMedia("(max-width: 639px)").matches;
+    if (!windows[nextId]?.open) track(`project/${next.folder}/${next.title}`, `${next.title} · ${next.folder}`);
     setWindowsHidden(false);
     setWindows((w) =>
       // the next project is already open: leave this window where it is and
@@ -503,6 +507,7 @@ export function Desktop({ lastUpdated }: { lastUpdated: string }) {
           title={project?.title}
           locked={!!folder?.locked && !unlocked}
           onUnlock={() => {
+            track("unlock");
             setUnlockedAt(Date.now());
           }}
         />

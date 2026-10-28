@@ -455,16 +455,24 @@ function BlockView({
       );
     case "terms":
       return (
-        <dl className="mt-3 space-y-2.5">
+        <dl className={block.headings ? undefined : "mt-3 space-y-2.5"}>
           {block.items.map((t, i) => (
             <div key={i}>
-              <dt className="font-semibold text-[#222]">{t.term}</dt>
-              {/* a list of texts gives one paragraph each, with a gap between them */}
-              {(Array.isArray(t.text) ? t.text : [t.text]).map((para, i) => (
-                <dd key={i} className={i > 0 ? "mt-2.5" : ""}>
-                  <Lines text={para} />
-                </dd>
-              ))}
+              <dt className={block.headings ? "mb-1.5 mt-6 text-[13.5px] font-semibold leading-snug text-[#222]" : "font-semibold text-[#222]"}>
+                {t.term}
+              </dt>
+              {/* a list gives one entry each: a string is a paragraph, a block is shown as itself */}
+              {(Array.isArray(t.text) ? t.text : [t.text]).map((entry, k) =>
+                typeof entry === "string" ? (
+                  <dd key={k} className={k > 0 ? (block.headings ? "mt-3" : "mt-2.5") : ""}>
+                    <Lines text={entry} />
+                  </dd>
+                ) : (
+                  <dd key={k}>
+                    <BlockView block={entry} />
+                  </dd>
+                )
+              )}
             </div>
           ))}
         </dl>
@@ -496,13 +504,29 @@ function BlockView({
       );
     case "columns":
       return (
-        <div className="mt-3 grid gap-x-6 gap-y-5 sm:grid-cols-3">
+        // one column per item (two columns share the full width, so a line of text has room to stay on one line)
+        <div
+          className={`mt-3 grid gap-x-6 gap-y-5 sm:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))] ${block.divider ? "items-start" : "items-center"}`}
+          style={{ "--cols": block.items.length } as React.CSSProperties}
+        >
           {block.items.map((c, i) => (
-            <div key={i} className="flex flex-col">
+            <div
+              key={i}
+              // the faint line sits in the middle of the gap, before every column but the first
+              className={`relative flex flex-col ${block.divider && i > 0 ? "sm:before:absolute sm:before:-left-3 sm:before:bottom-0 sm:before:top-0 sm:before:w-px sm:before:bg-[#e8e8e8]" : ""}`}
+            >
+              {c.figure && (
+                <div className="mb-3">
+                  <FigureView figure={c.figure} />
+                </div>
+              )}
               <div className="font-semibold text-[#222]">{c.title}</div>
-              <div>
-                <Lines text={c.text} />
-              </div>
+              {/* a column can hold several lines of text; each is its own entry */}
+              {(Array.isArray(c.text) ? c.text : [c.text]).map((t, k) => (
+                <div key={k} className={k > 0 ? "mt-2" : undefined}>
+                  <Lines text={t} />
+                </div>
+              ))}
               {c.note && (
                 <div className="mt-2.5 text-[12.5px] leading-snug text-[#8c8c8c] [&_strong]:text-[#222]">
                   <Lines text={c.note} />
@@ -543,6 +567,15 @@ function BlockView({
       return (
         <div className="mt-5">
           <TvMockup screen={block.screen} overlay={block.overlay} video={block.video} remote={block.remote} />
+          {block.caption && (
+            // the caption sits under the TV, in a box as wide as the TV itself: a short caption is centred, and one that
+            // wraps fills that width and stays left-aligned
+            <div className="mx-auto flex w-full justify-center" style={{ maxWidth: TV_WIDTH }}>
+              <p className="w-fit max-w-full text-left text-[12.5px] leading-snug text-[#8c8c8c] [&_strong]:text-[#222]">
+                <Lines text={block.caption} />
+              </p>
+            </div>
+          )}
         </div>
       );
     case "figures":
@@ -857,13 +890,17 @@ function Devices({ laptop, phone }: { laptop: Figure; phone?: Figure }) {
 const REMOTE_X = 1793;
 const REMOTE_Y = 801;
 const REMOTE_SCALE = 1.15;
-const REMOTE_POINTS: Record<TvRemoteKey | "off", { x: number; y: number }> = {
-  ok: { x: REMOTE_X + 95 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
-  rt: { x: REMOTE_X + 149 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
-  lt: { x: REMOTE_X + 41 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
-  bk: { x: REMOTE_X + 95 * REMOTE_SCALE, y: REMOTE_Y + 305 * REMOTE_SCALE },
-  off: { x: 1990, y: 1420 },
-};
+const REMOTE_W = 190 * REMOTE_SCALE;
+// where the thumb rests on each button, for a remote whose left edge is at x0
+const remotePoints = (x0: number, offX: number): Record<TvRemoteKey | "off", { x: number; y: number }> => ({
+  ok: { x: x0 + 95 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
+  rt: { x: x0 + 149 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
+  lt: { x: x0 + 41 * REMOTE_SCALE, y: REMOTE_Y + 140 * REMOTE_SCALE },
+  up: { x: x0 + 95 * REMOTE_SCALE, y: REMOTE_Y + 86 * REMOTE_SCALE },
+  dn: { x: x0 + 95 * REMOTE_SCALE, y: REMOTE_Y + 194 * REMOTE_SCALE },
+  bk: { x: x0 + 95 * REMOTE_SCALE, y: REMOTE_Y + 305 * REMOTE_SCALE },
+  off: { x: offX, y: 1420 },
+});
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 const easeInOut = (n: number) => {
   const t = clamp01(n);
@@ -871,12 +908,18 @@ const easeInOut = (n: number) => {
 };
 
 function TvRemoteLayer({ remote, videoRef }: { remote: TvRemote; videoRef: React.RefObject<HTMLVideoElement | null> }) {
+  const left = remote.side === "left";
+  const remoteX = left ? 2048 - REMOTE_X - REMOTE_W : REMOTE_X;
   const hostRef = useRef<HTMLDivElement>(null);
   const [k, setK] = useState(0);
   const okhRef = useRef<HTMLDivElement>(null);
   const bkhRef = useRef<HTMLDivElement>(null);
   const hRRef = useRef<SVGCircleElement>(null);
   const hLRef = useRef<SVGCircleElement>(null);
+  const hURef = useRef<SVGCircleElement>(null);
+  const aURef = useRef<SVGPathElement>(null);
+  const hDRef = useRef<SVGCircleElement>(null);
+  const aDRef = useRef<SVGPathElement>(null);
   const aRRef = useRef<SVGPathElement>(null);
   const aLRef = useRef<SVGPathElement>(null);
   const fingerRef = useRef<HTMLDivElement>(null);
@@ -893,17 +936,22 @@ function TvRemoteLayer({ remote, videoRef }: { remote: TvRemote; videoRef: React
     let raf = 0;
     const press = (t: number, a: number, b: number) => clamp01(Math.min((t - a) / 0.08, (b - t) / 0.08));
     const keys = remote.thumb;
+    const REMOTE_POINTS = remotePoints(remoteX, left ? 2048 - 1990 : 1990);
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const v = videoRef.current;
       if (!v) return;
       const t = v.currentTime;
-      const act = { ok: 0, rt: 0, lt: 0, bk: 0 };
+      const act = { ok: 0, rt: 0, lt: 0, up: 0, dn: 0, bk: 0 };
       for (const [key, a, b] of remote.presses) act[key] = Math.max(act[key], press(t, a, b));
       if (okhRef.current) okhRef.current.style.opacity = String(0.26 * act.ok);
       if (bkhRef.current) bkhRef.current.style.opacity = String(0.26 * act.bk);
       if (hRRef.current) hRRef.current.style.opacity = String(0.24 * act.rt);
       if (hLRef.current) hLRef.current.style.opacity = String(0.24 * act.lt);
+      if (hURef.current) hURef.current.style.opacity = String(0.24 * act.up);
+      if (aURef.current) aURef.current.style.opacity = String(0.78 + 0.22 * act.up);
+      if (hDRef.current) hDRef.current.style.opacity = String(0.24 * act.dn);
+      if (aDRef.current) aDRef.current.style.opacity = String(0.78 + 0.22 * act.dn);
       if (aRRef.current) aRRef.current.style.opacity = String(0.78 + 0.22 * act.rt);
       if (aLRef.current) aLRef.current.style.opacity = String(0.78 + 0.22 * act.lt);
       let pos = REMOTE_POINTS[keys[0][1]];
@@ -923,12 +971,12 @@ function TvRemoteLayer({ remote, videoRef }: { remote: TvRemote; videoRef: React
       const f = fingerRef.current;
       if (f) {
         f.style.opacity = String(clamp01((t - first) / 0.3) * clamp01((last - t) / 0.3));
-        f.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${1 - 0.16 * Math.max(act.ok, act.rt, act.lt, act.bk)})`;
+        f.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${1 - 0.16 * Math.max(act.ok, act.rt, act.lt, act.up, act.dn, act.bk)})`;
       }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [remote, videoRef]);
+  }, [remote, videoRef, remoteX, left]);
 
   const dim = "inset 0 0 0 2px rgba(255,255,255,0.12)";
   return (
@@ -937,7 +985,7 @@ function TvRemoteLayer({ remote, videoRef }: { remote: TvRemote; videoRef: React
         <div
           style={{
             position: "absolute",
-            left: REMOTE_X,
+            left: remoteX,
             top: REMOTE_Y,
             width: 190,
             height: 420,
@@ -951,13 +999,15 @@ function TvRemoteLayer({ remote, videoRef }: { remote: TvRemote; videoRef: React
           <div style={{ position: "absolute", left: 21, top: 66, width: 148, height: 148, borderRadius: "50%", background: "#0e0e11", boxShadow: "inset 0 0 0 2px rgba(255,255,255,.1)" }} />
           <svg width="190" height="420" viewBox="0 0 190 420" style={{ position: "absolute", left: 0, top: 0 }}>
             <g fill="#fff">
-              <path d="M95 76 L84 93 L106 93Z" opacity=".78" />
-              <path d="M95 204 L84 187 L106 187Z" opacity=".78" />
+              <path ref={aURef} d="M95 76 L84 93 L106 93Z" opacity=".78" />
+              <path ref={aDRef} d="M95 204 L84 187 L106 187Z" opacity=".78" />
               <path ref={aLRef} d="M31 140 L48 129 L48 151Z" opacity=".78" />
               <path ref={aRRef} d="M159 140 L142 129 L142 151Z" opacity=".78" />
             </g>
             <circle ref={hRRef} cx="149" cy="140" r="27" fill="#fff" opacity="0" />
             <circle ref={hLRef} cx="41" cy="140" r="27" fill="#fff" opacity="0" />
+            <circle ref={hURef} cx="95" cy="86" r="27" fill="#fff" opacity="0" />
+            <circle ref={hDRef} cx="95" cy="194" r="27" fill="#fff" opacity="0" />
           </svg>
           <div style={{ position: "absolute", left: 61, top: 106, width: 68, height: 68, borderRadius: "50%", background: "#333338", boxShadow: dim, color: "#fff", font: "700 24px Helvetica, Arial, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
             OK

@@ -25,9 +25,10 @@ export type Block =
   // a line of text set like code (monospaced, on a light grey background), e.g. a prompt
   | { type: "code"; text: string }
   | { type: "list"; items: string[] }
-  // a term and its description, one per row
-  // a term and its description; `text` can be a list, and each entry becomes its own paragraph
-  | { type: "terms"; items: { term: string; text: string | string[] }[] }
+  // a term and its description, one per row. `text` can be a list: a string becomes a paragraph, and
+  // a block (a video mockup, a note...) is shown as it would be on its own. With `headings`, the terms
+  // are set like subheadings (but, not being real subheadings, stay out of the chapter links)
+  | { type: "terms"; headings?: boolean; items: { term: string; text: string | (string | Block)[] }[] }
   | { type: "stats"; items: { value: string; label: string }[] }
   // pictures laid out like scattered snippets, positioned and sized in the units of a
   // `width` x `height` board; hovering the board opens an enlarged copy of the whole thing
@@ -41,7 +42,13 @@ export type Block =
   | { type: "links"; items: { text: string; href: string }[] }
   // a few short items side by side (stacked on a phone): a title, some text and an optional note
   // set just under the text
-  | { type: "columns"; items: { title: string; text: string; note?: string }[] }
+  // side-by-side columns. `figure` puts a picture above the title; `divider` draws a faint vertical line between
+  // the columns
+  | {
+      type: "columns";
+      divider?: boolean;
+      items: { title: string; figure?: Figure; text: string | string[]; note?: string }[];
+    }
   // `narrow` figures don't stretch to the full column (portrait photos)
   // `bare` drops the thin frame around the image (for transparent graphics)
   // `zoom` makes the image enlarge on hover
@@ -51,7 +58,7 @@ export type Block =
   | { type: "devices"; laptop: Figure; phone?: Figure }
   // a TV showing an image or animated GIF, or (with `video`) a video that loops, muted, with `screen`
   // as its poster; hover to enlarge, like the devices above
-  | { type: "tv"; screen: Figure; overlay?: TvOverlay; video?: string; remote?: TvRemote }
+  | { type: "tv"; screen: Figure; overlay?: TvOverlay; video?: string; remote?: TvRemote; caption?: string }
   // a two-column row: these blocks on the left, one image on the right (the image can be
   // hovered to enlarge it next to the window)
   | { type: "split"; left: Block[]; right: Figure }
@@ -65,8 +72,11 @@ export type TvOverlay = { src: string; alt: string; left: number; top: number; w
 // A remote and a thumb drawn live over a TV's video, following the video's own clock so they can't
 // drift from it. `thumb` is where the thumb is at each time (seconds, eased in between);
 // `presses` is when each button is held down: [button, from, to].
-export type TvRemoteKey = "ok" | "rt" | "lt" | "bk";
+export type TvRemoteKey = "ok" | "rt" | "lt" | "up" | "dn" | "bk";
+// `side: "left"` puts the remote on the left of the screen instead of the right (the same
+// placement, mirrored), for a screen whose right side the remote would cover.
 export type TvRemote = {
+  side?: "left" | "right";
   thumb: [number, TvRemoteKey | "off"][];
   presses: [TvRemoteKey, number, number][];
 };

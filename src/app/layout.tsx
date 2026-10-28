@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { site } from "@/data/site";
 
@@ -28,7 +29,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className="h-full">
-      <body className="h-full overflow-hidden">{children}</body>
+      <body className="h-full overflow-hidden">
+        {children}
+        <Script
+          src="https://gc.zgo.at/count.js"
+          data-goatcounter="https://haewonfyi.goatcounter.com/count"
+          strategy="afterInteractive"
+        />
+      </body>
     </html>
   );
 }

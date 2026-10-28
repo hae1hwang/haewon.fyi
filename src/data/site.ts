@@ -136,9 +136,8 @@ export const site = {
     },
     {
       name: "YouTube Living Room",
-      locked: true,
       placeholder: "Stay tuned...",
-      items: [{ title: "Identity", platform: "TV, Mobile" }],
+      items: [{ title: "Identity", platform: "TV, Mobile", comingSoon: true }],
     },
     {
       name: "Google Photos",
