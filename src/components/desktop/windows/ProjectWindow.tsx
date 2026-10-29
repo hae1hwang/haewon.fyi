@@ -239,6 +239,51 @@ function ScatterItems({ board }: { board: Extract<Block, { type: "scatter" }> })
   );
 }
 
+// Hover previews open on mouseenter and close on mouseleave, but a browser sends no mouseleave when
+// the element goes from under a still pointer (scrolling, a window closing or re-laying out), which
+// can strand a preview open. While one is open, also close it as soon as the pointer is found outside
+// the element it belongs to (checked on every move, scroll and blur, and on a short timer).
+const pointer = { x: -1, y: -1 };
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointermove",
+    (e) => {
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+    },
+    { capture: true, passive: true }
+  );
+}
+function useDismissPreview(open: boolean, anchor: React.RefObject<HTMLElement | null>, close: () => void) {
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  });
+  useEffect(() => {
+    if (!open) return;
+    const check = () => {
+      const a = anchor.current;
+      if (!a) return closeRef.current();
+      if (pointer.x < 0) return;
+      const el = document.elementFromPoint(pointer.x, pointer.y);
+      if (!el || !a.contains(el)) closeRef.current();
+    };
+    const away = () => closeRef.current();
+    window.addEventListener("pointermove", check, true);
+    window.addEventListener("scroll", check, true);
+    window.addEventListener("blur", away);
+    document.documentElement.addEventListener("mouseleave", away);
+    const timer = window.setInterval(check, 300);
+    return () => {
+      window.removeEventListener("pointermove", check, true);
+      window.removeEventListener("scroll", check, true);
+      window.removeEventListener("blur", away);
+      document.documentElement.removeEventListener("mouseleave", away);
+      window.clearInterval(timer);
+    };
+  }, [open, anchor]);
+}
+
 // A scattering of pictures (e.g. social posts). On a mouse device, hovering any of it opens an
 // enlarged copy of the whole board next to the window (or over it when there's no room beside it);
 // touch devices just see the small one.
@@ -246,6 +291,7 @@ function Scatter({ board }: { board: Extract<Block, { type: "scatter" }> }) {
   const ref = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
   const [zoomable, setZoomable] = useState(true);
+  useDismissPreview(!!preview, ref, () => setPreview(null));
 
   function show() {
     const el = ref.current;
@@ -302,6 +348,7 @@ function HoverPhrase({ text, src, credit }: { text: string; src: string; credit?
   const [loadedRatio, setRatio] = useState<number | null>(null);
   const ratio = videoId ? 9 / 16 : loadedRatio;
   const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
+  useDismissPreview(!!preview, ref, () => setPreview(null));
   useEffect(() => {
     if (!near || videoId) return;
     const img = new Image();
@@ -811,6 +858,7 @@ function Devices({ laptop, phone }: { laptop: Figure; phone?: Figure }) {
   // whether each device has room for an enlarged copy (decides the zoom cursor)
   const [zoomable, setZoomable] = useState<Record<Kind, boolean>>({ laptop: true, phone: true });
   const near = useNearScreen(rootRef);
+  useDismissPreview(!!preview, rootRef, () => setPreview(null));
   const ready = useBothLoaded(near, laptop.src, ...(phone ? [phone.src] : []));
 
   function show(kind: Kind, el: HTMLElement) {
@@ -1124,6 +1172,7 @@ function TvMockup({ screen, overlay, video, remote }: { screen: Figure; overlay?
   const videoRef = useRef<HTMLVideoElement>(null);
   const [preview, setPreview] = useState<{ left: number; top: number; width: number; startAt: number } | null>(null);
   const [zoomable, setZoomable] = useState(true);
+  useDismissPreview(!!preview, rootRef, () => setPreview(null));
   const near = useNearScreen(rootRef);
   // the overlay (e.g. a remote) is its own animation, so it starts together with the screen
   const gifReady = useBothLoaded(near && !video, screen.src, ...(overlay ? [overlay.src] : []));
@@ -1343,6 +1392,7 @@ function ZoomFigure({ figure, gain = 1.5 }: { figure: Figure; gain?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<{ left: number; top: number; width: number } | null>(null);
   const [zoomable, setZoomable] = useState(true);
+  useDismissPreview(!!preview, ref, () => setPreview(null));
 
   function show() {
     if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
