@@ -3,19 +3,9 @@
  "iterations": 300000,
  "keys": [
   {
-   "salt": "VHLtoON+rUUnr34qolnzeA==",
-   "iv": "80LX9W4OR9XkkOAb",
-   "wrapped": "AKCdZNePvpJ8eV1oVNzJBDsypCtzIx8Xy+Rn0hSkWTaQPn2tjTC30cVSP1LPKMhy"
-  },
-  {
    "salt": "poEzSo9Ob0+MIgZa0DOyEQ==",
    "iv": "WjggzYXW87idMxl8",
    "wrapped": "5O/hBij4oXipeePaGnkIh9TtgTP39jO/RJ/F3RCMJkhCD6sddQEWE81SOp4HenbW"
-  },
-  {
-   "salt": "nux7yygmnSKueomutYJ37g==",
-   "iv": "YORr+/s3aKuE7O/z",
-   "wrapped": "tZsyMBQ/l250c2jfnYq+Ttbh4vJ83jAYPcQDVbf3D0rQjuljQTGoQ2WzA+5T6Ht5"
   }
  ]
 }
