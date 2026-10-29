@@ -15,7 +15,9 @@ const decode = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0
 const hex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 
 async function fetchBytes(url: string): Promise<Uint8Array> {
-  const res = await fetch(url);
+  // the study files keep their names when their content changes, so always check with the server
+  // (a cheap revalidation) instead of trusting a copy the browser kept
+  const res = await fetch(url, { cache: "no-cache" });
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
 }
@@ -29,7 +31,7 @@ async function open(data: Uint8Array): Promise<ArrayBuffer> {
 // true when the password opens the vault (any one of the passwords will do)
 export async function unlock(password: string): Promise<boolean> {
   try {
-    vaultFile ??= fetch("/protected/vault.json").then((r) => r.json() as Promise<VaultFile>);
+    vaultFile ??= fetch("/protected/vault.json", { cache: "no-cache" }).then((r) => r.json() as Promise<VaultFile>);
     const vault = await vaultFile;
     const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password.trim()), "PBKDF2", false, ["deriveKey"]);
     for (const entry of vault.keys) {
