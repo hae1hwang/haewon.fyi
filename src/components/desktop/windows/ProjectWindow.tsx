@@ -90,6 +90,59 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
   const linkClass =
     "-mx-0.5 rounded-[3px] px-0.5 text-left underline decoration-[#b9b9b9] underline-offset-2 hover:bg-[#d9ebff] hover:decoration-[#333]";
 
+  // a block as it's shown in the page; a main heading is followed by its subheadings, in one line
+  // divided by bars
+  function renderBlock(block: Block, i: number) {
+    const subs = block.type === "heading" && !block.noSubLinks ? (chapters.find((c) => c.blockIndex === i)?.subs ?? []) : [];
+    return (
+      <Fragment key={i}>
+        <BlockView
+          block={block}
+          anchorRef={
+            block.type === "heading" || block.type === "subheading"
+              ? (el) => {
+                  anchorEls.current[i] = el;
+                }
+              : undefined
+          }
+        />
+        {subs.length > 0 && (
+          <div className="-mt-1 mb-1 text-[12px] leading-snug text-[#6f6f6f]">
+            {subs.map((sub, k) => (
+              <Fragment key={sub.blockIndex}>
+                {k > 0 && <span className="mx-1.5 text-[#c4c4c4]">|</span>}
+                <button type="button" onClick={() => goTo(sub.blockIndex)} className={linkClass}>
+                  {sub.text}
+                </button>
+              </Fragment>
+            ))}
+          </div>
+        )}
+      </Fragment>
+    );
+  }
+
+  // the blocks in order, with each boxed heading and its section gathered into one grey box
+  const blocks = caseStudy.blocks;
+  const sections: React.ReactNode[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    if (block.type !== "heading" || !block.boxed) {
+      sections.push(renderBlock(block, i));
+      continue;
+    }
+    let end = i + 1;
+    if (typeof block.boxed === "number") end = Math.min(blocks.length, end + block.boxed);
+    else while (end < blocks.length && blocks[end].type !== "heading") end++;
+    sections.push(
+      // the same light grey box as a quoted line of code; the heading sits flush with its top
+      <div key={i} className="mt-8 rounded-[6px] bg-[#f3f3f2] px-4 pb-4 pt-3.5 first:mt-6 [&>h2]:mt-0">
+        {blocks.slice(i, end).map((b, k) => renderBlock(b, i + k))}
+      </div>
+    );
+    i = end - 1;
+  }
+
   return (
     <article
       ref={articleRef}
@@ -126,52 +179,7 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
       </dl>
 
       <div className="mt-2">
-        {caseStudy.blocks.map((block, i) => {
-          // the block after a boxed heading is drawn inside that heading's box
-          const prev = caseStudy.blocks[i - 1];
-          if (prev?.type === "heading" && prev.boxed) return null;
-          // a main heading is followed by its subheadings, in one line divided by bars
-          const subs = block.type === "heading" && !block.noSubLinks ? (chapters.find((c) => c.blockIndex === i)?.subs ?? []) : [];
-          const boxed = block.type === "heading" && block.boxed;
-          const next = caseStudy.blocks[i + 1];
-          const content = (
-            <>
-              <BlockView
-                block={block}
-                anchorRef={
-                  block.type === "heading" || block.type === "subheading"
-                    ? (el) => {
-                        anchorEls.current[i] = el;
-                      }
-                    : undefined
-                }
-              />
-              {subs.length > 0 && (
-                <div className="-mt-1 mb-1 text-[12px] leading-snug text-[#6f6f6f]">
-                  {subs.map((sub, k) => (
-                    <Fragment key={sub.blockIndex}>
-                      {k > 0 && <span className="mx-1.5 text-[#c4c4c4]">|</span>}
-                      <button type="button" onClick={() => goTo(sub.blockIndex)} className={linkClass}>
-                        {sub.text}
-                      </button>
-                    </Fragment>
-                  ))}
-                </div>
-              )}
-              {boxed && next && <BlockView block={next} />}
-            </>
-          );
-          return (
-            <Fragment key={i}>
-              {boxed ? (
-                // the same light grey box as a quoted line of code; the heading sits flush with its top
-                <div className="mt-6 rounded-[6px] bg-[#f3f3f2] px-4 py-3.5 [&>h2]:mt-0">{content}</div>
-              ) : (
-                content
-              )}
-            </Fragment>
-          );
-        })}
+        {sections}
       </div>
     </article>
   );
@@ -576,7 +584,7 @@ function BlockView({
             <div
               key={i}
               // the faint line sits in the middle of the gap, before every column but the first
-              className={`relative flex flex-col ${block.divider && i > 0 ? "sm:before:absolute sm:before:-left-3 sm:before:bottom-0 sm:before:top-0 sm:before:w-px sm:before:bg-[#e8e8e8]" : ""}`}
+              className={`relative flex flex-col ${block.divider && i > 0 ? "sm:before:absolute sm:before:-left-3 sm:before:bottom-0 sm:before:top-0 sm:before:w-px sm:before:bg-black/[0.09]" : ""}`}
             >
               {c.figure && (
                 <div className="mb-3">

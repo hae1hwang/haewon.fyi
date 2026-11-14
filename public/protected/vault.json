@@ -3,11 +3,6 @@
  "iterations": 300000,
  "keys": [
   {
-   "salt": "poEzSo9Ob0+MIgZa0DOyEQ==",
-   "iv": "WjggzYXW87idMxl8",
-   "wrapped": "5O/hBij4oXipeePaGnkIh9TtgTP39jO/RJ/F3RCMJkhCD6sddQEWE81SOp4HenbW"
-  },
-  {
    "salt": "0CGrKg8R6VB/Tjp151JWPw==",
    "iv": "ZtfK7CdChDDglRFX",
    "wrapped": "3D7lQEZzTqf7SdGmk08a+VN5v7stCj2SzVh+0NVft09dmGtft8c1GI6P3DZRHNPq"
