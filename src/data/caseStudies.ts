@@ -17,7 +17,9 @@ export type Block =
   // `noSubLinks` hides the row of subheading links under this heading
   // `boxed` sets the heading's section on a light grey box: `true` for everything up to the next
   // heading, or a number for just that many blocks after the heading
-  | { type: "heading"; text: string; noSubLinks?: boolean; boxed?: boolean | number }
+  // `short` is an optional shorter name for the chapter list at the top of the page; the heading
+  // in the page keeps its full `text`
+  | { type: "heading"; text: string; short?: string; noSubLinks?: boolean; boxed?: boolean | number }
   // `short` is an optional shorter name for the link in the list under the heading above;
   // the heading in the page keeps its full `text`
   | { type: "subheading"; text: string; short?: string }

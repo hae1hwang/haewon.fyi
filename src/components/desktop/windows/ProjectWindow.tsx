@@ -72,7 +72,7 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
   // the page's outline: each main heading with the subheadings under it
   const chapters: { text: string; blockIndex: number; subs: { text: string; blockIndex: number }[] }[] = [];
   caseStudy.blocks.forEach((b, i) => {
-    if (b.type === "heading") chapters.push({ text: b.text, blockIndex: i, subs: [] });
+    if (b.type === "heading") chapters.push({ text: b.short ?? b.text, blockIndex: i, subs: [] });
     else if (b.type === "subheading" && chapters.length > 0) chapters[chapters.length - 1].subs.push({ text: b.short ?? b.text, blockIndex: i });
   });
 
