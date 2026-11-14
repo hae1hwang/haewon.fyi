@@ -127,10 +127,15 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
 
       <div className="mt-2">
         {caseStudy.blocks.map((block, i) => {
+          // the block after a boxed heading is drawn inside that heading's box
+          const prev = caseStudy.blocks[i - 1];
+          if (prev?.type === "heading" && prev.boxed) return null;
           // a main heading is followed by its subheadings, in one line divided by bars
           const subs = block.type === "heading" && !block.noSubLinks ? (chapters.find((c) => c.blockIndex === i)?.subs ?? []) : [];
-          return (
-            <Fragment key={i}>
+          const boxed = block.type === "heading" && block.boxed;
+          const next = caseStudy.blocks[i + 1];
+          const content = (
+            <>
               <BlockView
                 block={block}
                 anchorRef={
@@ -152,6 +157,17 @@ function CaseStudyView({ caseStudy }: { caseStudy: CaseStudy }) {
                     </Fragment>
                   ))}
                 </div>
+              )}
+              {boxed && next && <BlockView block={next} />}
+            </>
+          );
+          return (
+            <Fragment key={i}>
+              {boxed ? (
+                // the same light grey box as a quoted line of code; the heading sits flush with its top
+                <div className="mt-6 rounded-[6px] bg-[#f3f3f2] px-4 py-3.5 [&>h2]:mt-0">{content}</div>
+              ) : (
+                content
               )}
             </Fragment>
           );

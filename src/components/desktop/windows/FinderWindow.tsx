@@ -27,7 +27,7 @@ function Chevron() {
 }
 
 // `muted` is a selection in the column that doesn't have keyboard focus (grey, like Finder)
-const rowClass = (active: boolean, dim = false, muted = false) =>
+export const rowClass = (active: boolean, dim = false, muted = false) =>
   `flex w-full items-center gap-2 rounded-[5px] px-2 py-[3px] text-left text-[13px] font-normal ${
     active
       ? muted
@@ -37,6 +37,79 @@ const rowClass = (active: boolean, dim = false, muted = false) =>
         ? "text-black/40"
         : "text-black"
   }`;
+
+// path bar + search field shared by the Finder-style windows; `crumb` is the open folder, if any
+export function FinderToolbar({
+  root,
+  crumb,
+  query,
+  onQueryChange,
+}: {
+  root: string;
+  crumb?: string;
+  query: string;
+  onQueryChange: (q: string) => void;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
+      <span className="aqua-field min-w-0 flex-1 truncate px-2.5 py-1">
+        {/* on mobile, once a folder is open, the root collapses to "…" so the
+            path stays on one line */}
+        {crumb ? (
+          <>
+            <span className="sm:hidden">…</span>
+            <span className="hidden sm:inline">haewon.fyi</span>
+          </>
+        ) : (
+          "haewon.fyi"
+        )}{" "}
+        ▸ {root}{crumb && ` ▸ ${crumb}`}
+      </span>
+      <label className="relative flex w-[150px] shrink-0 items-center rounded-[5px] border border-black/20 bg-white shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)] focus-within:border-[#4d90fe] focus-within:ring-[3px] focus-within:ring-[#4d90fe]/40 sm:w-[200px]">
+        <svg
+          viewBox="0 0 16 16"
+          className="pointer-events-none absolute left-2 h-[11px] w-[11px] text-black/40"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          aria-hidden
+        >
+          <circle cx="6.5" cy="6.5" r="4.5" />
+          <path d="m10 10 4.5 4.5" />
+        </svg>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => onQueryChange(e.target.value)}
+          onKeyDown={(e) => {
+            // Esc clears the search first; with nothing to clear it falls
+            // through and closes the window
+            if (e.key === "Escape" && query) {
+              e.stopPropagation();
+              onQueryChange("");
+            }
+          }}
+          placeholder="Search"
+          aria-label={`Search ${root}`}
+          spellCheck={false}
+          autoComplete="off"
+          className="w-full min-w-0 select-text bg-transparent py-[3px] pl-6 pr-6 text-[16px] text-black outline-none sm:text-[12px] placeholder:text-black/40"
+        />
+        {query && (
+          <button
+            type="button"
+            aria-label="Clear search"
+            onClick={() => onQueryChange("")}
+            className="absolute right-1.5 flex h-[13px] w-[13px] items-center justify-center rounded-full bg-black/30 text-[9px] leading-none text-white hover:bg-black/45"
+          >
+            ✕
+          </button>
+        )}
+      </label>
+    </div>
+  );
+}
 
 // Finder-style column view shared by the work and fun folders
 export function FinderWindow({
@@ -165,63 +238,12 @@ export function FinderWindow({
 
   return (
     <div ref={rootRef} className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center gap-2 bg-chrome px-3 py-2 text-[12px] text-black/70">
-        <span className="aqua-field min-w-0 flex-1 truncate px-2.5 py-1">
-          {/* on mobile, once a folder is open, the root collapses to "…" so the
-              path stays on one line */}
-          {selected ? (
-            <>
-              <span className="sm:hidden">…</span>
-              <span className="hidden sm:inline">haewon.fyi</span>
-            </>
-          ) : (
-            "haewon.fyi"
-          )}{" "}
-          ▸ {root}{selected && ` ▸ ${selected.name}`}
-        </span>
-        <label className="relative flex w-[150px] shrink-0 items-center rounded-[5px] border border-black/20 bg-white shadow-[inset_0_1px_1px_rgba(0,0,0,0.06)] focus-within:border-[#4d90fe] focus-within:ring-[3px] focus-within:ring-[#4d90fe]/40 sm:w-[200px]">
-          <svg
-            viewBox="0 0 16 16"
-            className="pointer-events-none absolute left-2 h-[11px] w-[11px] text-black/40"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <circle cx="6.5" cy="6.5" r="4.5" />
-            <path d="m10 10 4.5 4.5" />
-          </svg>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              // Esc clears the search first; with nothing to clear it falls
-              // through and closes the window
-              if (e.key === "Escape" && query) {
-                e.stopPropagation();
-                setQuery("");
-              }
-            }}
-            placeholder="Search"
-            aria-label={`Search ${root}`}
-            spellCheck={false}
-            autoComplete="off"
-            className="w-full min-w-0 select-text bg-transparent py-[3px] pl-6 pr-6 text-[16px] text-black outline-none sm:text-[12px] placeholder:text-black/40"
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery("")}
-              className="absolute right-1.5 flex h-[13px] w-[13px] items-center justify-center rounded-full bg-black/30 text-[9px] leading-none text-white hover:bg-black/45"
-            >
-              ✕
-            </button>
-          )}
-        </label>
-      </div>
+      <FinderToolbar
+        root={root}
+        crumb={selected?.name}
+        query={query}
+        onQueryChange={setQuery}
+      />
 
       {/* column headers mirror the two columns below, so their divider lines up */}
       <div className="flex shrink-0 border-t border-black/10 bg-[#f6f7f9] text-[12px] text-black/55">

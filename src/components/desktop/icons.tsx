@@ -84,3 +84,22 @@ export function ExternalLinkIcon() {
     </svg>
   );
 }
+
+// App logos for the work list: each fills a square box
+export function YouTubeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <rect x="1" y="4.5" width="22" height="15" rx="4.4" fill="#ff0000" />
+      <path d="M9.8 8.7v6.6l5.7-3.3z" fill="#fff" />
+    </svg>
+  );
+}
+
+export function YouTubeTvIcon({ className }: { className?: string }) {
+  return <IconImage src="/icons/youtube-tv.png" className={className} />;
+}
+
+// the YouTube TV and Google Photos logos are pictures rather than drawn here
+export function GooglePhotosIcon({ className }: { className?: string }) {
+  return <IconImage src="/icons/google-photos.png" className={className} />;
+}

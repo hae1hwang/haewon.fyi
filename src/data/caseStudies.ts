@@ -15,7 +15,8 @@ export type Figure = {
 
 export type Block =
   // `noSubLinks` hides the row of subheading links under this heading
-  | { type: "heading"; text: string; noSubLinks?: boolean }
+  // `boxed` sets the heading and the block right after it on a light grey box (a summary up top, say)
+  | { type: "heading"; text: string; noSubLinks?: boolean; boxed?: boolean }
   // `short` is an optional shorter name for the link in the list under the heading above;
   // the heading in the page keeps its full `text`
   | { type: "subheading"; text: string; short?: string }
@@ -464,7 +465,7 @@ const portfolio: CaseStudy = {
 };
 
 export const caseStudies: Record<string, CaseStudy> = {
-  "Vibe coding/Portfolio site": portfolio,
+  "Personal/Portfolio site": portfolio,
 };
 
 export function getCaseStudy(folder: string, title: string): CaseStudy | undefined {

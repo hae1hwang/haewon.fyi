@@ -9,6 +9,7 @@ import { Window } from "./Window";
 import { NoteIcon, MailIcon, WorkFolderIcon, FunFolderIcon } from "./icons";
 import { AboutWindow } from "./windows/AboutWindow";
 import { FinderWindow, FINDER_EXPANDED_WIDTH } from "./windows/FinderWindow";
+import { ProjectListWindow, PROJECT_LIST_WIDTH } from "./windows/ProjectListWindow";
 import { site } from "@/data/site";
 import { ContactWindow } from "./windows/ContactWindow";
 import { ProjectWindow } from "./windows/ProjectWindow";
@@ -84,16 +85,13 @@ const APPS: Record<
     title: "work",
     icon: <WorkFolderIcon shadowed />,
     initial: { x: 60, y: 40 },
-    width: 420,
+    width: PROJECT_LIST_WIDTH,
     height: 415,
-    growsTo: FINDER_EXPANDED_WIDTH.withPlatform,
     placement: "left",
     render: ({ openProject, keyboardActive }) => (
-      <FinderWindow
+      <ProjectListWindow
         root="work"
         folders={site.workFolders}
-        firstColumnLabel="Team"
-        showPlatform
         onOpenProject={openProject}
         keyboardActive={keyboardActive}
       />
@@ -184,7 +182,7 @@ function leftPlacementX(vw: number, w: number) {
 // Where project windows are centred horizontally: the right-hand side of the
 // screen, and always clear of the work window even when it has widened.
 function projectBaseCentreX(vw: number, w: number) {
-  const workW = Math.min(vw * 0.92, FINDER_EXPANDED_WIDTH.withPlatform);
+  const workW = Math.min(vw * 0.92, PROJECT_LIST_WIDTH);
   const workRight = leftPlacementX(vw, workW) + workW;
   const wanted = Math.max(vw * 0.63, workRight + 24 + w / 2);
   // keep one cascade step of room on the right, so the second window isn't cut off

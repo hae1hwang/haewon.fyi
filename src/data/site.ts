@@ -1,9 +1,16 @@
 // a phrase in the about timeline that opens a project from the work folder
 export type AboutLink = { text: string; folder: string; project: string };
-export type WorkItem = { title: string; platform?: string; comingSoon?: boolean };
+// `keywords` is the free-text last column of the work list
+export type WorkItem = { title: string; platform?: string; keywords?: string; comingSoon?: boolean };
 // `placeholder` is what the folder's project windows say until there are case studies
 // `locked` folders ask for a password before any of their projects open
-export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string; locked?: boolean };
+// `icon` is what the work list shows beside each of the folder's projects: an app logo or an emoji
+export type WorkIcon = "youtube-tv" | "youtube" | "google-photos" | { emoji: string };
+export type WorkFolder = { name: string; items: WorkItem[]; placeholder?: string; locked?: boolean; icon?: WorkIcon };
+
+// a project still being written: listed on localhost (`npm run dev`) so it can be worked on, and
+// hidden like any other comingSoon project on the live site
+const DRAFT = process.env.NODE_ENV === "production";
 
 export const site = {
   name: "Haewon Hwang",
@@ -28,18 +35,18 @@ export const site = {
           { text: "multiview", folder: "YouTube TV", project: "Multiview" },
           { text: "Library", folder: "YouTube TV", project: "Library" },
           { text: "Watch", folder: "YouTube TV", project: "Watch" },
-          { text: "sign-in and identity", folder: "YouTube TV", project: "Identity" },
+          { text: "sign-in and identity", folder: "YouTube", project: "Identity" },
         ],
       },
       {
         year: "2018",
         text: "YouTube Living Room, senior designer. Owned the entire Identity domain, creating ways to sign in on the TV, as well as everything identity-related across platforms.",
-        links: [{ text: "Identity", folder: "YouTube Living Room", project: "Identity" }],
+        links: [{ text: "Identity", folder: "YouTube", project: "Identity" }],
       },
       {
         year: "2017",
         text: "Google Photos, designer. Created the collage building experience for Photo Books on mobile, tablet and web.",
-        links: [{ text: "collage", folder: "Google Photos", project: "Creation & editing" }],
+        links: [{ text: "collage", folder: "Google Photos", project: "Photobooks" }],
       },
       {
         year: "2014",
@@ -125,28 +132,32 @@ export const site = {
   workFolders: [
     {
       name: "YouTube TV",
+      icon: "youtube-tv",
       locked: true,
       placeholder: "Stay tuned...",
       items: [
-        { title: "Multiview", platform: "TV, Mobile/Tablet" },
-        { title: "Watch", platform: "TV", comingSoon: true },
-        { title: "Library", platform: "TV", comingSoon: true },
-        { title: "Identity", platform: "TV", comingSoon: true },
+        { title: "Multiview", platform: "TV, Mobile/Tablet", keywords: "End to end, product strategy, new bets" },
+        { title: "Watch", platform: "TV", keywords: "Core experience, visioning", comingSoon: true },
+        { title: "Library", platform: "TV", keywords: "Redesign, system design", comingSoon: true },
       ],
     },
     {
-      name: "YouTube Living Room",
+      name: "YouTube",
+      icon: "youtube",
+      locked: true,
       placeholder: "Stay tuned...",
-      items: [{ title: "Identity", platform: "TV, Mobile", comingSoon: true }],
+      items: [{ title: "Identity", platform: "TV, Mobile", keywords: "Strategy, trust & safety, growth", comingSoon: DRAFT }],
     },
     {
       name: "Google Photos",
+      icon: "google-photos",
       placeholder: "Coming soon",
-      items: [{ title: "Creation & editing", platform: "Mobile, Web", comingSoon: true }],
+      items: [{ title: "Photobooks", platform: "Mobile, Web, Print", keywords: "Creative tools", comingSoon: true }],
     },
     {
-      name: "Vibe coding",
-      items: [{ title: "Portfolio site", platform: "Web, Mobile web" }],
+      name: "Personal",
+      icon: { emoji: "👩🏻‍💻" },
+      items: [{ title: "Portfolio site", platform: "Web, Mobile web", keywords: "Vibe coding, Claude Code" }],
     },
   ] as WorkFolder[],
 };
