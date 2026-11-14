@@ -1,6 +1,7 @@
 // `npm run dev`: the Next.js dev server, plus (when the private case studies and their passwords
 // are on this machine) a watcher that re-encrypts them whenever private/studies.ts or anything
 // in private/work/ changes, so localhost follows your edits. Refresh the page to see them.
+// Localhost also skips the password screen: the dev server is handed a password to open it with.
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, watch } from "node:fs";
 import { createRequire } from "node:module";
@@ -14,6 +15,15 @@ function havePasswords() {
   if (process.env.PROTECTED_PASSWORDS) return true;
   const envFile = join(root, ".env.local");
   return existsSync(envFile) && /^PROTECTED_PASSWORDS=\S+/m.test(readFileSync(envFile, "utf8"));
+}
+
+// the first password, for localhost to open the protected case studies without asking (it is only
+// handed to the dev server, never written to a file or used by a build)
+function firstPassword() {
+  let all = process.env.PROTECTED_PASSWORDS;
+  const envFile = join(root, ".env.local");
+  if (!all && existsSync(envFile)) all = readFileSync(envFile, "utf8").match(/^PROTECTED_PASSWORDS=(.*)$/m)?.[1];
+  return (all ?? "").split(",")[0].trim().replace(/^["']|["']$/g, "");
 }
 
 let running = false;
@@ -49,6 +59,10 @@ if (existsSync(join(root, "private", "studies.ts")) && havePasswords()) {
   console.log("[protected] no PROTECTED_PASSWORDS (env or .env.local): not watching the private case studies");
 }
 
-const next = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "dev", ...process.argv.slice(2)], { cwd: root, stdio: "inherit" });
+const next = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "dev", ...process.argv.slice(2)], {
+  cwd: root,
+  stdio: "inherit",
+  env: { ...process.env, NEXT_PUBLIC_DEV_UNLOCK: firstPassword() },
+});
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => next.kill(sig));
 next.on("exit", (code) => process.exit(code ?? 0));

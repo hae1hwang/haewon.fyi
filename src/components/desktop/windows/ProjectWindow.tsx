@@ -485,13 +485,13 @@ function BlockView({
   switch (block.type) {
     case "heading":
       return (
-        <h2 ref={anchorRef} className="mb-2 mt-9 text-[15px] font-semibold leading-snug text-[#111]">
+        <h2 ref={anchorRef} className="mb-2 mt-9 text-[18px] font-semibold leading-snug tracking-[-0.01em] text-[#111]">
           {block.text}
         </h2>
       );
     case "subheading":
       return (
-        <h3 ref={anchorRef} className="mb-1.5 mt-6 text-[13.5px] font-semibold leading-snug text-[#222]">
+        <h3 ref={anchorRef} className="mb-1.5 mt-6 text-[15px] font-semibold leading-snug text-[#111]">
           {block.text}
         </h3>
       );
@@ -529,7 +529,7 @@ function BlockView({
         <dl className={block.headings ? undefined : "mt-3 space-y-2.5"}>
           {block.items.map((t, i) => (
             <div key={i}>
-              <dt className={block.headings ? "mb-1.5 mt-6 text-[13.5px] font-semibold leading-snug text-[#222]" : "font-semibold text-[#222]"}>
+              <dt className={block.headings ? "mb-1.5 mt-6 text-[15px] font-semibold leading-snug text-[#111]" : "font-semibold text-[#222]"}>
                 {t.term}
               </dt>
               {/* a list gives one entry each: a string is a paragraph, a block is shown as itself */}
@@ -575,9 +575,10 @@ function BlockView({
       );
     case "columns":
       return (
-        // one column per item (two columns share the full width, so a line of text has room to stay on one line)
+        // one column per item (two columns share the full width, so a line of text has room to stay on one line);
+        // text columns line up along the top, and columns that hold figures are centred on each other
         <div
-          className={`mt-3 grid gap-x-6 gap-y-5 sm:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))] ${block.divider ? "items-start" : "items-center"}`}
+          className={`mt-3 grid gap-x-6 gap-y-5 sm:[grid-template-columns:repeat(var(--cols),minmax(0,1fr))] ${block.items.some((c) => c.figure) && !block.divider ? "items-center" : "items-start"}`}
           style={{ "--cols": block.items.length } as React.CSSProperties}
         >
           {block.items.map((c, i) => (
@@ -1264,6 +1265,22 @@ function LockScreen({ title, onUnlock }: { title?: string; onUnlock: () => void 
   const [checking, setChecking] = useState(false);
   // bumping this re-triggers the shake on a repeated wrong guess
   const [tries, setTries] = useState(0);
+
+  // on localhost only: `npm run dev` passes along a password from .env.local, so the lock opens by
+  // itself. The check on NODE_ENV keeps all of this out of the built site.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const devPassword = process.env.NEXT_PUBLIC_DEV_UNLOCK;
+    if (!devPassword) return;
+    let cancelled = false;
+    unlock(devPassword).then((ok) => {
+      if (ok && !cancelled) onUnlock();
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
